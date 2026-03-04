@@ -1,0 +1,100 @@
+
+anomaly:
+  detection:
+    data-preprocessing:
+      window-size: 5  # Sliding window size for real-time analysis
+      interval-minutes: 15 # Data aggregation interval
+    detection:
+      feature-window-size: 10 # Window size for historical feature extraction
+      alpha-base: 3.0 # Base alpha for Grubbs test
+      sensitivity: 5.0 # Sensitivity level (1-10)
+      dtw-std-factor-base: 2.0 # Base factor for DTW threshold
+    algorithm-weights:
+      mahalanobis: 0.4
+      dtw: 0.3
+      zscore: 0.3
+    algorithm-thresholds:
+      mahalanobis: 3.0
+      dtw: 2.0
+      zscore: 3.0
+    
+
+    dtw-params:
+      window-ratio: 0.1
+      max-lookback-period: 96
+      min-lookback-period: 24
+      use-constrained-dtw: true
+      distance-threshold: 10.0
+    
+
+    mahalanobis-params:
+      distance-threshold: 2.5
+      use-simplified-version: true
+      min-samples-for-covariance: 30
+      regularization-factor: 0.01
+    
+
+    z-score-params:
+      threshold: 3.0
+      rolling-window-size: 30
+      use-rolling-stats: true
+      min-std-dev: 0.1
+    
+
+    comprehensive-params:
+      anomaly-threshold: 0.3
+      enable-weighted-scoring: true
+      min-algorithms-for-decision: 1
+      confidence-threshold: 0.7
+
+
+electricity:
+  pattern:
+    analysis:
+      default-analysis-days: 365
+      default-interval-minutes: 15
+      default-window-size: 5
+      min-data-points-for-analysis: 100
+      confidence-threshold: 0.7
+      
+
+    tag-rules:
+      low-power-threshold: 100
+      high-power-threshold: 500
+      stable-usage-threshold: 0.2
+      volatile-usage-threshold: 0.5
+      regular-device-threshold: 0.3
+
+
+alert:
+
+  severity-levels:
+    low: 1
+    medium: 2
+    high: 3
+    critical: 4
+  
+
+  push:
+    enable-realtime: true
+    push-interval-seconds: 30
+    max-retry-times: 3
+    
+
+  processing:
+    auto-acknowledge-threshold: 0.8
+    escalation-time-minutes: 30
+    max-processing-time-hours: 24
+
+
+monitoring:
+  realtime:
+    data-refresh-interval-seconds: 15
+    anomaly-check-interval-seconds: 60
+    max-concurrent-users: 1000
+    
+
+  storage:
+    keep-raw-data-days: 30
+    keep-processed-data-days: 365
+    keep-anomaly-records-days: 180
