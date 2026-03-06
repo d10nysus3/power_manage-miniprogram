@@ -34,8 +34,16 @@
     <!-- 图表容器 -->
     <view class="chart-container" v-if="selectedUser">
       <view class="chart-title">{{ selectedUser.name }} - 每日用电趋势</view>
-      <view class="chart-wrapper">
+      
+      <!-- 有数据时显示图表 -->
+      <view class="chart-wrapper" v-if="chartData.length > 0">
         <l-echart ref="chartRef" type="2d" :beforeDelay="500" @finished="onChartInit"></l-echart>
+      </view>
+      
+      <!-- 无数据时显示提示 -->
+      <view class="no-data-tip" v-else>
+        <text class="tip-icon">📭</text>
+        <text class="tip-text">该用户在所一周内暂无用电数据</text>
       </view>
     </view>
 
@@ -59,12 +67,6 @@
         <text class="stat-label">最高日用电量</text>
         <text class="stat-value">{{ maxConsumption.toFixed(2) }} kWh</text>
       </view>
-    </view>
-
-    <!-- 无数据提示 -->
-    <view class="no-data-tip" v-if="selectedUser && chartData.length === 0">
-      <text class="tip-icon">📭</text>
-      <text class="tip-text">该用户在所选时间段内暂无用电数据</text>
     </view>
   </view>
 </template>
@@ -513,15 +515,14 @@ onUnmounted(() => {
 }
 
 .no-data-tip {
+  width: 100%;
   height: 400rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin: 20rpx;
-  background-color: #ffffff;
-  border-radius: 16rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+  background-color: #f5f7fa;
+  border-radius: 12rpx;
 }
 
 .no-data-tip .tip-icon {
