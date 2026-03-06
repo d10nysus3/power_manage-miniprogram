@@ -121,10 +121,29 @@ async function request(options: RequestOptions, retryCount = 0): Promise<any> {
   }
   
   try {
+    // 对于 GET 请求，将 data 转换为 URL 查询参数
+    let requestUrl = BASE_URL + url
+    let requestData = data
+    
+    if (method === 'GET' && data && Object.keys(data).length > 0) {
+      // 手动构建查询参数，避免使用 URLSearchParams（微信小程序不支持）
+      const queryParams: string[] = []
+      Object.keys(data).forEach(key => {
+        if (data[key] !== undefined && data[key] !== null) {
+          queryParams.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(data[key]))}`)
+        }
+      })
+      const queryString = queryParams.join('&')
+      if (queryString) {
+        requestUrl += (url.includes('?') ? '&' : '?') + queryString
+      }
+      requestData = undefined // GET 请求不需要 body
+    }
+    
     const res = await uni.request({
-      url: BASE_URL + url,
+      url: requestUrl,
       method,
-      data,
+      data: requestData,
       header: {
         'Content-Type': 'application/json',
         ...addAuthHeader(header)

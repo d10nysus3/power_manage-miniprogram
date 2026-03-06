@@ -22,16 +22,16 @@
       }
     },
     {
-      "path": "pages/trend-analysis/trend-analysis",
-      "style": {
-        "navigationBarTitleText": "趋势分析",
-        "enablePullDownRefresh": true
-      }
-    },
-    {
       "path": "pages/electricity-pattern/electricity-pattern",
       "style": {
         "navigationBarTitleText": "用电分析"
+      }
+    },
+    {
+      "path": "pages/electricity-trend/electricity-trend",
+      "style": {
+        "navigationBarTitleText": "用电趋势",
+        "enablePullDownRefresh": true
       }
     },
     {
@@ -91,7 +91,7 @@
         "text": "档案"
       },
       {
-        "pagePath": "pages/trend-analysis/trend-analysis",
+        "pagePath": "pages/electricity-trend/electricity-trend",
         "iconPath": "static/tabbar/trend.png",
         "selectedIconPath": "static/tabbar/trend-active.png",
         "text": "趋势"
