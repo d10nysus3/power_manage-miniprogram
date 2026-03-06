@@ -13,8 +13,8 @@
       </picker>
     </view>
 
-    <!-- 时间范围选择 -->
-    <view class="time-range-selector">
+    <!-- 时间范围选择 - 移除，固定为7天 -->
+    <!-- <view class="time-range-selector">
       <view 
         class="range-item" 
         :class="{ active: timeRange === 7 }"
@@ -29,18 +29,18 @@
       >
         近30天
       </view>
-    </view>
+    </view> -->
 
     <!-- 图表容器 -->
-    <view class="chart-container" v-show="selectedUser">
-      <view class="chart-title">{{ selectedUser ? selectedUser.name : '' }} - 每日用电趋势</view>
+    <view class="chart-container" v-if="selectedUser">
+      <view class="chart-title">{{ selectedUser.name }} - 每日用电趋势</view>
       <view class="chart-wrapper">
-        <l-echart ref="chartRef" @finished="onChartInit"></l-echart>
+        <l-echart ref="chartRef" type="2d" :beforeDelay="500" @finished="onChartInit"></l-echart>
       </view>
     </view>
 
     <!-- 空状态 -->
-    <view class="empty-state" v-show="!selectedUser">
+    <view class="empty-state" v-else>
       <text class="empty-icon">📊</text>
       <text class="empty-text">请选择用户查看用电趋势</text>
     </view>
@@ -70,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import request from '../../utils/request'
 
 interface User {
@@ -85,13 +85,25 @@ interface ElectricityData {
   power: number
 }
 
+// 加载 echarts
+let echarts: any = null
+// #ifdef MP-WEIXIN
+declare const require: any
+try {
+  echarts = require('../../uni_modules/lime-echart/static/echarts.min')
+  console.log('[electricity-trend] echarts 加载成功', !!echarts)
+} catch (e) {
+  console.error('[electricity-trend] echarts 加载失败', e)
+}
+// #endif
+
 const userList = ref<User[]>([])
 const selectedUserIndex = ref(-1)
 const selectedUser = ref<User | null>(null)
-const timeRange = ref(7)
+const timeRange = ref(7) // 固定为7天
 const chartData = ref<any[]>([])
 const chartRef = ref<any>(null)
-const chartInstance = ref<any>(null)
+let chartInstance: any = null
 
 // 统计数据
 const totalConsumption = computed(() => {
@@ -128,14 +140,6 @@ const onUserChange = (e: any) => {
   selectedUserIndex.value = e.detail.value
   selectedUser.value = userList.value[selectedUserIndex.value]
   loadElectricityData()
-}
-
-// 时间范围选择
-const selectTimeRange = (days: number) => {
-  timeRange.value = days
-  if (selectedUser.value) {
-    loadElectricityData()
-  }
 }
 
 // 获取用电数据
@@ -182,8 +186,9 @@ const loadElectricityData = async () => {
     
     if (!data || data.length === 0) {
       chartData.value = []
-      if (chartInstance.value) {
-        chartInstance.value.clear()
+      const ins = await ensureChart()
+      if (ins) {
+        ins.clear()
       }
       return
     }
@@ -195,9 +200,7 @@ const loadElectricityData = async () => {
     console.log('聚合后的每日数据:', dailyData)
     
     // 更新图表
-    if (chartInstance.value) {
-      updateChart(dailyData)
-    }
+    updateChart(dailyData)
     
   } catch (error) {
     console.error('获取用电数据失败:', error)
@@ -211,10 +214,11 @@ const loadElectricityData = async () => {
   }
 }
 
-// 按日期聚合数据
+// 按日期聚合数据，只保留最近7天
 const aggregateByDay = (data: ElectricityData[]) => {
   const dailyMap = new Map<string, number>()
   
+  // 聚合每天的用电量
   data.forEach(item => {
     const date = item.recordTime.split(' ')[0]
     const current = dailyMap.get(date) || 0
@@ -222,154 +226,148 @@ const aggregateByDay = (data: ElectricityData[]) => {
   })
   
   // 转换为数组并排序
-  const result = Array.from(dailyMap.entries())
+  let result = Array.from(dailyMap.entries())
     .map(([date, value]) => ({ date, value }))
     .sort((a, b) => a.date.localeCompare(b.date))
+  
+  // 只保留最近7天的数据
+  if (result.length > 7) {
+    result = result.slice(-7)
+  }
+  
+  console.log('[electricity-trend] 聚合后保留最近7天数据:', result)
   
   return result
 }
 
-// 图表初始化
-const onChartInit = async () => {
-  if (!chartRef.value) return
-  
+// 确保图表实例存在
+const ensureChart = async () => {
+  if (chartInstance) {
+    console.log('[electricity-trend] 图表已存在，直接返回')
+    return chartInstance
+  }
+  if (!chartRef.value) {
+    console.error('[electricity-trend] chartRef.value 为空')
+    return null
+  }
+  if (!echarts) {
+    console.error('[electricity-trend] echarts 未加载，无法初始化图表')
+    return null
+  }
+  console.log('[electricity-trend] 开始初始化图表...')
   try {
-    // 动态导入 echarts
-    const echarts = await import('../../uni_modules/lime-echart/static/echarts.min.js')
-    const chart = await chartRef.value.init(echarts)
-    chartInstance.value = chart
-    console.log('图表初始化成功')
-    
+    chartInstance = await chartRef.value.init(echarts)
+    console.log('[electricity-trend] 图表初始化成功', !!chartInstance)
+    chartRef.value?.resize?.()
+    return chartInstance
+  } catch (e) {
+    console.error('[electricity-trend] 图表初始化失败', e)
+    return null
+  }
+}
+
+// 图表初始化回调
+const onChartInit = async () => {
+  console.log('[electricity-trend] 图表组件 finished 事件触发')
+  const ins = await ensureChart()
+  if (ins) {
+    console.log('[electricity-trend] 图表初始化完成')
     // 如果已经有数据，立即更新图表
     if (selectedUser.value && chartData.value.length > 0) {
       updateChart(chartData.value)
     }
-  } catch (error) {
-    console.error('图表初始化失败:', error)
+  } else {
+    console.error('[electricity-trend] 图表初始化失败')
   }
 }
 
 // 更新图表
-const updateChart = (data: any[]) => {
-  if (!chartInstance.value || data.length === 0) return
+const updateChart = async (data: any[]) => {
+  const ins = await ensureChart()
+  if (!ins || data.length === 0) {
+    console.error('[electricity-trend] 图表实例不存在或数据为空')
+    return
+  }
   
   const dates = data.map(item => {
-    // 格式化日期为 MM-DD
+    // 格式化日期为 MM/DD
     const parts = item.date.split('-')
-    return `${parts[1]}-${parts[2]}`
+    return `${parts[1]}/${parts[2]}`
   })
   const values = data.map(item => Number(item.value.toFixed(2)))
   
+  console.log('[electricity-trend] 设置图表 option', { dates, values })
+  
+  // 使用与首页相同的图表配置
   const option = {
-    backgroundColor: '#ffffff',
-    grid: {
-      left: '15%',
-      right: '10%',
-      top: '20%',
-      bottom: '20%'
+    tooltip: { 
+      trigger: 'axis', 
+      confine: true 
+    },
+    grid: { 
+      left: 12, 
+      right: 12, 
+      top: 20, 
+      bottom: 12, 
+      containLabel: true 
     },
     xAxis: {
       type: 'category',
+      boundaryGap: false,
       data: dates,
-      axisLabel: {
-        fontSize: 10,
-        rotate: 45,
-        color: '#666'
-      },
-      axisLine: {
-        lineStyle: {
-          color: '#ddd'
-        }
+      axisLabel: { 
+        color: '#606266', 
+        fontSize: 10 
       }
     },
     yAxis: {
       type: 'value',
-      name: '用电量(kWh)',
-      nameTextStyle: {
-        fontSize: 11,
-        color: '#666'
+      axisLabel: { 
+        color: '#606266', 
+        fontSize: 10 
       },
-      axisLabel: {
-        fontSize: 10,
-        color: '#666'
-      },
-      axisLine: {
-        show: false
-      },
-      splitLine: {
-        lineStyle: {
-          type: 'dashed',
-          color: '#eee'
-        }
+      splitLine: { 
+        lineStyle: { 
+          color: '#ebeef5' 
+        } 
       }
     },
     series: [
       {
-        name: '每日用电量',
+        name: '用电量',
         type: 'line',
-        data: values,
         smooth: true,
-        lineStyle: {
-          width: 3,
-          color: {
-            type: 'linear',
-            x: 0,
-            y: 0,
-            x2: 1,
-            y2: 0,
-            colorStops: [
-              { offset: 0, color: '#667eea' },
-              { offset: 1, color: '#764ba2' }
-            ]
-          }
+        showSymbol: false,
+        lineStyle: { 
+          width: 2, 
+          color: '#409eff' 
         },
-        areaStyle: {
-          color: {
-            type: 'linear',
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
-            colorStops: [
-              { offset: 0, color: 'rgba(102, 126, 234, 0.3)' },
-              { offset: 1, color: 'rgba(118, 75, 162, 0.05)' }
-            ]
-          }
+        areaStyle: { 
+          color: 'rgba(64,158,255,0.18)' 
         },
-        itemStyle: {
-          color: '#667eea',
-          borderWidth: 2,
-          borderColor: '#fff'
-        },
-        emphasis: {
-          itemStyle: {
-            color: '#764ba2',
-            borderWidth: 3
-          }
-        }
+        data: values
       }
-    ],
-    tooltip: {
-      trigger: 'axis',
-      backgroundColor: 'rgba(0, 0, 0, 0.7)',
-      borderColor: 'transparent',
-      textStyle: {
-        color: '#fff',
-        fontSize: 12
-      },
-      formatter: (params: any) => {
-        const param = params[0]
-        return `${param.name}<br/>用电量: ${param.value} kWh`
-      }
-    }
+    ]
   }
   
-  chartInstance.value.setOption(option)
-  console.log('图表更新成功')
+  ins.setOption(option, true)
+  console.log('[electricity-trend] 图表更新成功')
 }
 
 onMounted(() => {
+  console.log('[electricity-trend] 页面 mounted')
+  console.log('[electricity-trend] echarts 是否加载:', !!echarts)
   getUserList()
+})
+
+onUnmounted(() => {
+  try {
+    chartInstance?.dispose?.()
+  } catch (e) {
+    // ignore
+  } finally {
+    chartInstance = null
+  }
 })
 </script>
 
@@ -413,31 +411,6 @@ onMounted(() => {
   color: #909399;
 }
 
-.time-range-selector {
-  display: flex;
-  gap: 20rpx;
-  padding: 20rpx;
-  background-color: #ffffff;
-  margin-bottom: 20rpx;
-}
-
-.range-item {
-  flex: 1;
-  text-align: center;
-  padding: 20rpx;
-  background-color: #f5f7fa;
-  border-radius: 12rpx;
-  font-size: 28rpx;
-  color: #606266;
-  transition: all 0.3s;
-}
-
-.range-item.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #ffffff;
-  font-weight: bold;
-}
-
 .chart-container {
   background-color: #ffffff;
   padding: 20rpx;
@@ -456,7 +429,23 @@ onMounted(() => {
 
 .chart-wrapper {
   width: 100%;
-  height: 500rpx;
+  height: 400rpx;
+  background-color: #ffffff;
+  border-radius: 12rpx;
+  overflow: hidden;
+  position: relative;
+}
+
+.chart-wrapper :deep(l-echart),
+.chart-wrapper :deep(.lime-echart),
+.chart-wrapper :deep(.lime-echart__canvas) {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.chart-wrapper :deep(canvas) {
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .empty-state {
