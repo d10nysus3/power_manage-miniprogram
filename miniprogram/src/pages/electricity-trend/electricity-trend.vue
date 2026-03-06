@@ -216,26 +216,56 @@ const loadElectricityData = async () => {
 
 // 按日期聚合数据，只保留最近7天
 const aggregateByDay = (data: ElectricityData[]) => {
+  console.log('[electricity-trend] ========== 开始聚合数据 ==========')
+  console.log('[electricity-trend] 原始数据条数:', data.length)
+  console.log('[electricity-trend] 原始数据示例:', JSON.stringify(data.slice(0, 3)))
+  
   const dailyMap = new Map<string, number>()
   
   // 聚合每天的用电量
-  data.forEach(item => {
-    const date = item.recordTime.split(' ')[0]
-    const current = dailyMap.get(date) || 0
-    dailyMap.set(date, current + item.electricityConsumption)
+  data.forEach((item, index) => {
+    // 处理可能的时间格式：支持 "YYYY-MM-DD HH:mm:ss" 和 "YYYY-MM-DDTHH:mm:ss"
+    let dateStr = item.recordTime
+    if (dateStr.includes('T')) {
+      // ISO 格式：2026-03-06T10:57:19
+      dateStr = dateStr.split('T')[0]
+    } else if (dateStr.includes(' ')) {
+      // 标准格式：2026-03-06 10:57:19
+      dateStr = dateStr.split(' ')[0]
+    }
+    
+    const consumption = Number(item.electricityConsumption) || 0
+    const current = dailyMap.get(dateStr) || 0
+    const newTotal = current + consumption
+    dailyMap.set(dateStr, newTotal)
+    
+    // 打印前几条的聚合过程
+    if (index < 5) {
+      console.log(`[electricity-trend] 第${index}条: recordTime=${item.recordTime}, 提取日期=${dateStr}, 用电量=${consumption}, 累计=${newTotal}`)
+    }
   })
+  
+  console.log('[electricity-trend] 聚合后的日期数量:', dailyMap.size)
+  console.log('[electricity-trend] 聚合后的Map:', JSON.stringify(Array.from(dailyMap.entries())))
   
   // 转换为数组并排序
   let result = Array.from(dailyMap.entries())
-    .map(([date, value]) => ({ date, value }))
+    .map(([date, value]) => ({ 
+      date: date,  // 确保只有日期，没有时间
+      value: value 
+    }))
     .sort((a, b) => a.date.localeCompare(b.date))
+  
+  console.log('[electricity-trend] 排序后的数据:', JSON.stringify(result))
   
   // 只保留最近7天的数据
   if (result.length > 7) {
+    console.log(`[electricity-trend] 数据超过7天(${result.length}天)，只保留最后7天`)
     result = result.slice(-7)
   }
   
-  console.log('[electricity-trend] 聚合后保留最近7天数据:', result)
+  console.log('[electricity-trend] ========== 最终返回的7天数据 ==========')
+  console.log('[electricity-trend]', JSON.stringify(result))
   
   return result
 }
@@ -283,20 +313,35 @@ const onChartInit = async () => {
 
 // 更新图表
 const updateChart = async (data: any[]) => {
+  console.log('[electricity-trend] updateChart 被调用，数据:', data)
+  console.log('[electricity-trend] 数据长度:', data.length)
+  console.log('[electricity-trend] 数据类型:', typeof data, Array.isArray(data))
+  
   const ins = await ensureChart()
-  if (!ins || data.length === 0) {
-    console.error('[electricity-trend] 图表实例不存在或数据为空')
+  if (!ins) {
+    console.error('[electricity-trend] 图表实例不存在')
+    return
+  }
+  if (data.length === 0) {
+    console.error('[electricity-trend] 数据为空')
     return
   }
   
-  const dates = data.map(item => {
+  console.log('[electricity-trend] 开始处理数据...')
+  const dates = data.map((item, index) => {
+    console.log(`[electricity-trend] 处理第${index}项:`, item)
     // 格式化日期为 MM/DD
     const parts = item.date.split('-')
-    return `${parts[1]}/${parts[2]}`
+    const formatted = `${parts[1]}/${parts[2]}`
+    console.log(`[electricity-trend] 日期格式化: ${item.date} -> ${formatted}`)
+    return formatted
   })
   const values = data.map(item => Number(item.value.toFixed(2)))
   
-  console.log('[electricity-trend] 设置图表 option', { dates, values })
+  console.log('[electricity-trend] 处理后的横坐标(dates):', dates)
+  console.log('[electricity-trend] 处理后的纵坐标(values):', values)
+  console.log('[electricity-trend] dates 长度:', dates.length)
+  console.log('[electricity-trend] values 长度:', values.length)
   
   // 使用与首页相同的图表配置
   const option = {
@@ -350,6 +395,7 @@ const updateChart = async (data: any[]) => {
     ]
   }
   
+  console.log('[electricity-trend] 完整的 option:', JSON.stringify(option))
   ins.setOption(option, true)
   console.log('[electricity-trend] 图表更新成功')
 }
