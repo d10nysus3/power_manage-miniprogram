@@ -188,10 +188,13 @@ const loadElectricityData = async () => {
     
     if (!data || data.length === 0) {
       chartData.value = []
-      const ins = await ensureChart()
-      if (ins) {
-        ins.clear()
+      // 销毁图表实例，确保下次有数据时能重新初始化
+      try {
+        chartInstance?.dispose?.()
+      } catch (e) {
+        // ignore
       }
+      chartInstance = null
       return
     }
     
@@ -211,6 +214,13 @@ const loadElectricityData = async () => {
       icon: 'none'
     })
     chartData.value = []
+    // 销毁图表实例，确保下次有数据时能重新初始化
+    try {
+      chartInstance?.dispose?.()
+    } catch (e) {
+      // ignore
+    }
+    chartInstance = null
   } finally {
     uni.hideLoading()
   }

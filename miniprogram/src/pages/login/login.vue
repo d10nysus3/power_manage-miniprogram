@@ -161,9 +161,8 @@ const handleLogin = async () => {
 
 // 跳转注册
 const goToRegister = () => {
-  uni.showToast({
-    title: '注册功能开发中',
-    icon: 'none'
+  uni.navigateTo({
+    url: '/pages/register/register'
   })
 }
 </script>

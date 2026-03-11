@@ -140,3 +140,4 @@ const echarts = await import('../../uni_modules/lime-echart/static/echarts.min.j
 现在用电趋势功能应该可以完全正常工作了！
 
 
+
