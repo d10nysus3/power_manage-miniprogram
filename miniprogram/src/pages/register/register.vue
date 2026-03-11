@@ -96,8 +96,8 @@ import request from '../../utils/request'
 const loading = ref(false)
 
 const roleOptions = [
-  { label: '电力公司人员', value: 'ADMIN' },
-  { label: '社区人员', value: 'MANAGER' }
+  { label: '电力公司人员', value: 'admin' },
+  { label: '社区人员', value: 'normal' }
 ]
 const selectedRoleIndex = ref(-1)
 
@@ -169,10 +169,15 @@ const handleRegister = async () => {
 
   loading.value = true
   try {
-    await request.post('/auth/register', {
-      username: form.username.trim(),
-      password: form.password,
-      role: form.role
+    await request.request({
+      url: '/auth/register',
+      method: 'POST',
+      data: {
+        username: form.username.trim(),
+        password: form.password,
+        role: form.role
+      },
+      skipAuthRedirect: true
     })
 
     uni.showToast({

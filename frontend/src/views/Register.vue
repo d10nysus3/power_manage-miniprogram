@@ -47,8 +47,8 @@
             :class="{ 'error': errors.role }"
           >
             <option value="">请选择角色</option>
-            <option value="ADMIN">电力公司人员</option>
-            <option value="MANAGER">社区人员</option>
+            <option value="admin">电力公司人员</option>
+            <option value="normal">社区人员</option>
           </select>
           <div v-if="errors.role" class="error-message">{{ errors.role }}</div>
         </div>

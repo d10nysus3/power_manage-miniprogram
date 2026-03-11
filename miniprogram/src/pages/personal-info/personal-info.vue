@@ -2,58 +2,34 @@
   <view class="personal-info-container">
     <!-- 头像区域 -->
     <view class="avatar-section">
-      <view class="avatar">{{ username.charAt(0) }}</view>
+      <view class="avatar">{{ username.charAt(0).toUpperCase() }}</view>
       <text class="username">{{ username }}</text>
-      <text class="role">{{ roleDisplayName }}</text>
+      <text class="role-badge">{{ roleDisplayName }}</text>
     </view>
 
-    <!-- 信息列表 -->
-    <view class="info-section">
-      <view class="info-item" @click="editProfile">
-        <view class="item-left">
-          <text class="item-icon">👤</text>
-          <text class="item-label">个人资料</text>
-        </view>
-        <text class="item-arrow">→</text>
-      </view>
+    <!-- 基本信息卡片 -->
+    <view class="card">
+      <view class="card-title">基本信息</view>
 
-      <view class="info-item" @click="changePassword">
-        <view class="item-left">
-          <text class="item-icon">🔒</text>
-          <text class="item-label">修改密码</text>
-        </view>
-        <text class="item-arrow">→</text>
+      <view class="info-row">
+        <text class="info-label">用户名</text>
+        <text class="info-value">{{ username }}</text>
       </view>
+      <view class="divider" />
 
-      <view class="info-item" @click="viewNotifications">
-        <view class="item-left">
-          <text class="item-icon">🔔</text>
-          <text class="item-label">消息通知</text>
-        </view>
-        <view class="item-right">
-          <text class="badge" v-if="unreadCount > 0">{{ unreadCount }}</text>
-          <text class="item-arrow">→</text>
-        </view>
+      <view class="info-row">
+        <text class="info-label">角色</text>
+        <text class="info-value">{{ roleDisplayName }}</text>
       </view>
+      <view class="divider" />
 
-      <view class="info-item" v-if="role === 'ADMIN'" @click="viewSettings">
-        <view class="item-left">
-          <text class="item-icon">⚙️</text>
-          <text class="item-label">系统设置</text>
-        </view>
-        <text class="item-arrow">→</text>
-      </view>
-
-      <view class="info-item" @click="viewAbout">
-        <view class="item-left">
-          <text class="item-icon">ℹ️</text>
-          <text class="item-label">关于系统</text>
-        </view>
-        <text class="item-arrow">→</text>
+      <view class="info-row">
+        <text class="info-label">最近登录</text>
+        <text class="info-value">{{ lastLoginTime }}</text>
       </view>
     </view>
 
-    <!-- 退出登录按钮 -->
+    <!-- 退出登录 -->
     <view class="logout-section">
       <button class="logout-btn" @click="handleLogout">退出登录</button>
     </view>
@@ -67,64 +43,15 @@ import { getUserInfo, clearUserInfo, getRoleDisplayName } from '../../utils/auth
 const username = ref('')
 const role = ref('')
 const roleDisplayName = ref('')
-const unreadCount = ref(0)
+const lastLoginTime = ref('')
 
 onMounted(() => {
   const userInfo = getUserInfo()
   username.value = userInfo.username || '用户'
   role.value = userInfo.role || ''
   roleDisplayName.value = getRoleDisplayName(userInfo.role || '')
+  lastLoginTime.value = new Date().toLocaleString('zh-CN')
 })
-
-// 编辑个人资料
-const editProfile = () => {
-  uni.showToast({
-    title: '功能开发中',
-    icon: 'none'
-  })
-}
-
-// 修改密码
-const changePassword = () => {
-  uni.showModal({
-    title: '修改密码',
-    editable: true,
-    placeholderText: '请输入新密码',
-    success: (res) => {
-      if (res.confirm && res.content) {
-        uni.showToast({
-          title: '密码修改成功',
-          icon: 'success'
-        })
-      }
-    }
-  })
-}
-
-// 查看通知
-const viewNotifications = () => {
-  uni.showToast({
-    title: '功能开发中',
-    icon: 'none'
-  })
-}
-
-// 系统设置
-const viewSettings = () => {
-  uni.showToast({
-    title: '功能开发中',
-    icon: 'none'
-  })
-}
-
-// 关于系统
-const viewAbout = () => {
-  uni.showModal({
-    title: '关于系统',
-    content: '特需用户用电监测与异常预警系统\n版本: 1.0.0\n\n为特需用户提供实时用电监测和异常预警服务',
-    showCancel: false
-  })
-}
 
 // 退出登录
 const handleLogout = () => {
@@ -134,14 +61,9 @@ const handleLogout = () => {
     success: (res) => {
       if (res.confirm) {
         clearUserInfo()
-        uni.showToast({
-          title: '已退出登录',
-          icon: 'success'
-        })
+        uni.showToast({ title: '已退出登录', icon: 'success' })
         setTimeout(() => {
-          uni.reLaunch({
-            url: '/pages/login/login'
-          })
+          uni.reLaunch({ url: '/pages/login/login' })
         }, 1500)
       }
     }
@@ -153,8 +75,10 @@ const handleLogout = () => {
 .personal-info-container {
   min-height: 100vh;
   background-color: #f5f7fa;
+  padding-bottom: 40rpx;
 }
 
+/* 头像区域 */
 .avatar-section {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 60rpx 30rpx 80rpx;
@@ -181,82 +105,70 @@ const handleLogout = () => {
 .username {
   font-size: 40rpx;
   font-weight: bold;
-  margin-bottom: 10rpx;
+  margin-bottom: 12rpx;
 }
 
-.role {
-  font-size: 26rpx;
-  opacity: 0.9;
-  padding: 8rpx 20rpx;
+.role-badge {
+  font-size: 24rpx;
+  padding: 8rpx 24rpx;
   background-color: rgba(255, 255, 255, 0.2);
-  border-radius: 20rpx;
+  border-radius: 30rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.4);
 }
 
-.info-section {
-  margin: -40rpx 20rpx 20rpx;
+/* 卡片 */
+.card {
+  margin: 0 20rpx 24rpx;
   background-color: #ffffff;
   border-radius: 16rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
-  overflow: hidden;
+  padding: 24rpx 28rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.06);
 }
 
-.info-item {
+.card:first-of-type {
+  margin-top: -40rpx;
+}
+
+.card-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #303133;
+  margin-bottom: 20rpx;
+  padding-bottom: 16rpx;
+  border-bottom: 2rpx solid #f0f2f5;
+}
+
+/* 基本信息行 */
+.info-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 30rpx 24rpx;
-  border-bottom: 1rpx solid #f0f0f0;
+  padding: 20rpx 0;
 }
 
-.info-item:last-child {
-  border-bottom: none;
+.info-label {
+  font-size: 28rpx;
+  color: #606266;
+  flex-shrink: 0;
+  width: 180rpx;
 }
 
-.info-item:active {
-  background-color: #f5f7fa;
-}
-
-.item-left {
-  display: flex;
-  align-items: center;
-}
-
-.item-icon {
-  font-size: 36rpx;
-  margin-right: 16rpx;
-}
-
-.item-label {
+.info-value {
   font-size: 28rpx;
   color: #303133;
+  text-align: right;
+  flex: 1;
 }
 
-.item-right {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
+.divider {
+  height: 1rpx;
+  background-color: #f0f2f5;
 }
 
-.badge {
-  min-width: 32rpx;
-  height: 32rpx;
-  padding: 0 8rpx;
-  background-color: #f56c6c;
-  color: #ffffff;
-  border-radius: 16rpx;
-  font-size: 20rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.item-arrow {
-  font-size: 28rpx;
-  color: #c0c4cc;
-}
-
+/* 退出登录 */
 .logout-section {
-  padding: 40rpx 20rpx;
+  padding: 0 20rpx;
+  margin-top: 8rpx;
 }
 
 .logout-btn {

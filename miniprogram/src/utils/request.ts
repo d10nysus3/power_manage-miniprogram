@@ -19,6 +19,8 @@ interface RequestOptions {
   header?: any
   showLoading?: boolean
   loadingText?: string
+  /** 设为 true 时，401 不触发全局跳转登录逻辑（用于登录/注册接口） */
+  skipAuthRedirect?: boolean
 }
 
 // 判断是否需要重试
@@ -42,11 +44,17 @@ function addAuthHeader(header: any = {}) {
 }
 
 // 响应拦截器 - 处理错误
-function handleResponse(res: any, url: string) {
+function handleResponse(res: any, url: string, skipAuthRedirect = false) {
   const { statusCode, data } = res
   
-  // 401 未授权 - 跳转登录
+  // 401 未授权
   if (statusCode === 401) {
+    if (skipAuthRedirect) {
+      // 登录/注册接口：直接返回服务端错误消息，不跳转
+      const msg = data?.message || data?.error || '账号或密码错误'
+      return Promise.reject(new Error(msg))
+    }
+    // 其他接口：清除 token 并跳转登录页
     uni.removeStorageSync('token')
     uni.removeStorageSync('username')
     uni.removeStorageSync('role')
@@ -109,7 +117,8 @@ async function request(options: RequestOptions, retryCount = 0): Promise<any> {
     data,
     header = {},
     showLoading = false,
-    loadingText = '加载中...'
+    loadingText = '加载中...',
+    skipAuthRedirect = false
   } = options
   
   // 显示加载提示
@@ -155,7 +164,7 @@ async function request(options: RequestOptions, retryCount = 0): Promise<any> {
       uni.hideLoading()
     }
     
-    return handleResponse(res, url)
+    return handleResponse(res, url, skipAuthRedirect)
   } catch (error: any) {
     if (showLoading) {
       uni.hideLoading()

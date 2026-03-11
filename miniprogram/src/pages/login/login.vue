@@ -108,9 +108,11 @@ const handleLogin = async () => {
   loading.value = true
 
   try {
-    const res: any = await request.post('/auth/login', {
-      username: form.username,
-      password: form.password
+    const res: any = await request.request({
+      url: '/auth/login',
+      method: 'POST',
+      data: { username: form.username, password: form.password },
+      skipAuthRedirect: true
     })
 
     // 保存用户信息
@@ -148,10 +150,11 @@ const handleLogin = async () => {
       }
     }, 1500)
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('登录失败:', error)
+    const msg = error?.message || '登录失败，请检查账号密码'
     uni.showToast({
-      title: '登录失败，请检查账号密码',
+      title: msg,
       icon: 'none'
     })
   } finally {
