@@ -13,23 +13,6 @@
       </picker>
     </view>
 
-    <!-- 时间范围选择 - 移除，固定为7天 -->
-    <!-- <view class="time-range-selector">
-      <view 
-        class="range-item" 
-        :class="{ active: timeRange === 7 }"
-        @click="selectTimeRange(7)"
-      >
-        近7天
-      </view>
-      <view 
-        class="range-item" 
-        :class="{ active: timeRange === 30 }"
-        @click="selectTimeRange(30)"
-      >
-        近30天
-      </view>
-    </view> -->
 
     <!-- 图表容器 -->
     <view class="chart-container" v-if="selectedUser">
@@ -87,17 +70,23 @@ interface ElectricityData {
   power: number
 }
 
-// 加载 echarts
+// 延迟加载 echarts，避免模块顶层同步 require 1MB 文件阻塞 WAService 线程导致 timeout
 let echarts: any = null
 // #ifdef MP-WEIXIN
 declare const require: any
-try {
-  echarts = require('../../uni_modules/lime-echart/static/echarts.min')
-  console.log('[electricity-trend] echarts 加载成功', !!echarts)
-} catch (e) {
-  console.error('[electricity-trend] echarts 加载失败', e)
-}
 // #endif
+const loadEcharts = (): any => {
+  if (echarts) return echarts
+  // #ifdef MP-WEIXIN
+  try {
+    echarts = require('../../uni_modules/lime-echart/static/echarts.min')
+    console.log('[electricity-trend] echarts 加载成功', !!echarts)
+  } catch (e) {
+    console.error('[electricity-trend] echarts 加载失败', e)
+  }
+  // #endif
+  return echarts
+}
 
 const userList = ref<User[]>([])
 const selectedUserIndex = ref(-1)
@@ -292,13 +281,13 @@ const ensureChart = async () => {
     console.error('[electricity-trend] chartRef.value 为空')
     return null
   }
-  if (!echarts) {
+  if (!loadEcharts()) {
     console.error('[electricity-trend] echarts 未加载，无法初始化图表')
     return null
   }
   console.log('[electricity-trend] 开始初始化图表...')
   try {
-    chartInstance = await chartRef.value.init(echarts)
+    chartInstance = await chartRef.value.init(loadEcharts())
     console.log('[electricity-trend] 图表初始化成功', !!chartInstance)
     chartRef.value?.resize?.()
     return chartInstance
@@ -414,7 +403,7 @@ const updateChart = async (data: any[]) => {
 
 onMounted(() => {
   console.log('[electricity-trend] 页面 mounted')
-  console.log('[electricity-trend] echarts 是否加载:', !!echarts)
+  console.log('[electricity-trend] echarts 是否加载:', !!loadEcharts())
   getUserList()
 })
 

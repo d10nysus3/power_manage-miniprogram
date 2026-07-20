@@ -6,8 +6,8 @@
 /// <reference types="@dcloudio/types" />
 
 // 配置基础URL - 需要根据实际后端地址修改
-const BASE_URL = 'http://8.152.214.222:8081/power_manage/api' // 远程服务器
-// const BASE_URL = 'http://127.0.0.1:8081/power_manage/api' // 本地开发
+const BASE_URL = 'http://8.152.214.222:8081/power_manage/api' 
+
 
 
 const MAX_RETRIES = 3

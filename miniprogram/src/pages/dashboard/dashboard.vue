@@ -112,18 +112,23 @@ const username = ref('')
 const timeRanges = ['近7天', '近30天', '近90天']
 const timeRangeIndex = ref(0)
 
-// 当前项目主要运行在微信小程序
+// 延迟加载 echarts，避免模块顶层同步 require 1MB 文件阻塞 WAService 线程导致 timeout
 let echarts: any = null
 // #ifdef MP-WEIXIN
-// require 仅支持相对路径
 declare const require: any
-try {
-  echarts = require('../../uni_modules/lime-echart/static/echarts.min')
-  console.log('[dashboard] echarts 加载成功', !!echarts)
-} catch (e) {
-  console.error('[dashboard] echarts 加载失败', e)
-}
 // #endif
+const loadEcharts = (): any => {
+  if (echarts) return echarts
+  // #ifdef MP-WEIXIN
+  try {
+    echarts = require('../../uni_modules/lime-echart/static/echarts.min')
+    console.log('[dashboard] echarts 加载成功', !!echarts)
+  } catch (e) {
+    console.error('[dashboard] echarts 加载失败', e)
+  }
+  // #endif
+  return echarts
+}
 
 interface StatusCard {
   icon: string
@@ -201,13 +206,13 @@ const ensureChart = async () => {
     console.error('[dashboard] chartRef.value 为空')
     return null
   }
-  if (!echarts) {
+  if (!loadEcharts()) {
     console.error('[dashboard] echarts 未加载，无法初始化趋势图')
     return null
   }
   console.log('[dashboard] 开始初始化趋势图...')
   try {
-    chartIns = await chartRef.value.init(echarts)
+    chartIns = await chartRef.value.init(loadEcharts())
     console.log('[dashboard] 趋势图初始化成功', !!chartIns)
     // 尺寸兜底
     chartRef.value?.resize?.()
@@ -227,13 +232,13 @@ const ensureTypeChart = async () => {
     console.error('[dashboard] typeChartRef.value 为空')
     return null
   }
-  if (!echarts) {
+  if (!loadEcharts()) {
     console.error('[dashboard] echarts 未加载，无法初始化类型分布图')
     return null
   }
   console.log('[dashboard] 开始初始化类型分布图...')
   try {
-    typeChartIns = await typeChartRef.value.init(echarts)
+    typeChartIns = await typeChartRef.value.init(loadEcharts())
     console.log('[dashboard] 类型分布图初始化成功', !!typeChartIns)
     typeChartRef.value?.resize?.()
     return typeChartIns
@@ -475,7 +480,7 @@ onPullDownRefresh(() => {
 
 onMounted(() => {
   console.log('[dashboard] 页面 mounted')
-  console.log('[dashboard] echarts 是否加载:', !!echarts)
+  console.log('[dashboard] echarts 是否加载:', !!loadEcharts())
   console.log('[dashboard] chartRef:', !!chartRef.value)
   console.log('[dashboard] typeChartRef:', !!typeChartRef.value)
   
