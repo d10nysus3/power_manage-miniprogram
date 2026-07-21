@@ -18,8 +18,15 @@ public class SystemUser {
     @Column(nullable = false, length = 255)  
     private String passwordHash;
 
-    @Column(nullable = false, length = 50)  
+    @Column(nullable = false, length = 50)
     private String role;
+
+    /**
+     * Community whose resident records this manager may access.
+     * ADMIN users are not restricted by this field.
+     */
+    @Column(name = "managed_community", length = 100)
+    private String managedCommunity;
 
     @Column(name = "is_active")  
     private boolean active;

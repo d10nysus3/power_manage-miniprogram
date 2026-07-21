@@ -1,6 +1,8 @@
 package com.powermanage.controller;
 
 import com.powermanage.entity.User;
+import com.powermanage.entity.SystemUser;
+import com.powermanage.service.UserAccessService;
 import com.powermanage.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -19,9 +21,14 @@ public class UserController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private UserAccessService userAccessService;
+
     
     @PostMapping
     public ResponseEntity<User> createUser(@RequestBody User user) {
+        SystemUser currentUser = userAccessService.getCurrentSystemUser();
+        userAccessService.applyCommunityForCreate(currentUser, user);
         User savedUser = userService.saveUser(user);
         return new ResponseEntity<>(savedUser, HttpStatus.CREATED);
     }
@@ -29,24 +36,30 @@ public class UserController {
     
     @GetMapping("/{id}")
     public ResponseEntity<User> getUserById(@PathVariable Long id) {
+        SystemUser currentUser = userAccessService.getCurrentSystemUser();
         Optional<User> user = userService.getUserById(id);
-        return user.map(ResponseEntity::ok)
+        return user.filter(value -> userAccessService.canAccess(currentUser, value))
+                .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     
     @GetMapping("/idcard/{idCard}")
     public ResponseEntity<User> getUserByIdCard(@PathVariable String idCard) {
+        SystemUser currentUser = userAccessService.getCurrentSystemUser();
         Optional<User> user = userService.getUserByIdCard(idCard);
-        return user.map(ResponseEntity::ok)
+        return user.filter(value -> userAccessService.canAccess(currentUser, value))
+                .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     
     @GetMapping("/meternumber/{meterNumber}")
     public ResponseEntity<User> getUserByMeterNumber(@PathVariable String meterNumber) {
+        SystemUser currentUser = userAccessService.getCurrentSystemUser();
         Optional<User> user = userService.getUserByMeterNumber(meterNumber);
-        return user.map(ResponseEntity::ok)
+        return user.filter(value -> userAccessService.canAccess(currentUser, value))
+                .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
@@ -58,11 +71,12 @@ public class UserController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
         
-        List<User> users;
+        SystemUser currentUser = userAccessService.getCurrentSystemUser();
+        List<User> users = userAccessService.filterAccessible(currentUser, userService.getAllUsers());
         if (community != null && !community.isEmpty()) {
-            users = userService.getUsersByCommunity(community);
-        } else {
-            users = userService.getAllUsers();
+            users = users.stream()
+                    .filter(user -> community.equals(user.getCommunity()))
+                    .collect(java.util.stream.Collectors.toList());
         }
         
         // 根据关键字过滤
@@ -100,48 +114,54 @@ public class UserController {
     
     @GetMapping("/community/{community}")
     public List<User> getUsersByCommunity(@PathVariable String community) {
-        return userService.getUsersByCommunity(community);
+        return getAccessibleUsers(userService.getUsersByCommunity(community));
     }
 
     
     @GetMapping("/special/single-alone")
     public List<User> getSingleAloneUsers() {
-        return userService.getSingleAloneUsers();
+        return getAccessibleUsers(userService.getSingleAloneUsers());
     }
 
     @GetMapping("/special/couple-alone")
     public List<User> getCoupleAloneUsers() {
-        return userService.getCoupleAloneUsers();
+        return getAccessibleUsers(userService.getCoupleAloneUsers());
     }
 
     @GetMapping("/special/mobility-impaired")
     public List<User> getMobilityImpairedUsers() {
-        return userService.getMobilityImpairedUsers();
+        return getAccessibleUsers(userService.getMobilityImpairedUsers());
     }
 
     @GetMapping("/special/reliance-equipment")
     public List<User> getRelianceEquipmentUsers() {
-        return userService.getRelianceEquipmentUsers();
+        return getAccessibleUsers(userService.getRelianceEquipmentUsers());
     }
 
     @GetMapping("/special/chronic-disease")
     public List<User> getChronicDiseaseUsers() {
-        return userService.getChronicDiseaseUsers();
+        return getAccessibleUsers(userService.getChronicDiseaseUsers());
     }
 
     @GetMapping("/special/reliance-environment")
     public List<User> getRelianceEnvironmentUsers() {
-        return userService.getRelianceEnvironmentUsers();
+        return getAccessibleUsers(userService.getRelianceEnvironmentUsers());
     }
 
     @GetMapping("/special/production")
     public List<User> getProductionUsers() {
-        return userService.getProductionUsers();
+        return getAccessibleUsers(userService.getProductionUsers());
     }
 
     
     @PutMapping("/{id}")
     public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User user) {
+        Optional<User> existingUser = userService.getUserById(id);
+        if (!existingUser.isPresent()) {
+            return ResponseEntity.notFound().build();
+        }
+        SystemUser currentUser = userAccessService.getCurrentSystemUser();
+        userAccessService.applyCommunityForUpdate(currentUser, existingUser.get(), user);
         user.setId(id);
         try {
             User updatedUser = userService.updateUser(user);
@@ -154,6 +174,11 @@ public class UserController {
     
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+        Optional<User> existingUser = userService.getUserById(id);
+        if (!existingUser.isPresent()) {
+            return ResponseEntity.notFound().build();
+        }
+        userAccessService.assertCanAccess(userAccessService.getCurrentSystemUser(), existingUser.get());
         try {
             userService.deleteUser(id);
             return ResponseEntity.noContent().build();
@@ -165,18 +190,26 @@ public class UserController {
     
     @GetMapping("/type/{userType}")
     public List<User> getUsersByType(@PathVariable String userType) {
-        return userService.getUsersByType(userType);
+        return getAccessibleUsers(userService.getUsersByType(userType));
     }
 
     
     @GetMapping("/active")
     public List<User> getActiveUsers() {
-        return userService.getActiveUsers();
+        return getAccessibleUsers(userService.getActiveUsers());
     }
     
     // 获取所有不重复的社区列表
     @GetMapping("/communities")
     public List<String> getCommunities() {
-        return userService.getAllCommunities();
+        SystemUser currentUser = userAccessService.getCurrentSystemUser();
+        if (userAccessService.isAdmin(currentUser)) {
+            return userService.getAllCommunities();
+        }
+        return java.util.Collections.singletonList(userAccessService.requireManagedCommunity(currentUser));
+    }
+
+    private List<User> getAccessibleUsers(List<User> users) {
+        return userAccessService.filterAccessible(userAccessService.getCurrentSystemUser(), users);
     }
 }

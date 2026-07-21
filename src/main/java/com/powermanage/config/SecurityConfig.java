@@ -62,6 +62,7 @@ public class SecurityConfig {
                 .antMatchers("/api/anomalies/**").hasRole("ADMIN")
                 .antMatchers("/api/emergency/**").hasRole("ADMIN")
                 .antMatchers("/api/admin/**").hasRole("ADMIN")
+                .antMatchers("/api/system-users/**").hasRole("ADMIN")
 
                 // 其他接口允许 ADMIN 和 MANAGER 访问
                 .antMatchers("/api/manager/**").hasAnyRole("ADMIN", "MANAGER")

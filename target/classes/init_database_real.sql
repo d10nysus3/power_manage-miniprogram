@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS t_system_user (
     username VARCHAR(64) NOT NULL UNIQUE COMMENT '用户名',
     password_hash VARCHAR(255) NOT NULL COMMENT '密码哈希',
     role VARCHAR(50) NOT NULL COMMENT '角色',
+    managed_community VARCHAR(100) COMMENT '区管理员负责的社区',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     is_active BOOLEAN DEFAULT TRUE COMMENT '是否激活'

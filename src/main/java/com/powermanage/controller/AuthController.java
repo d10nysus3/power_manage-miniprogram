@@ -77,7 +77,13 @@ public class AuthController {
             }
             String token = issueToken(username);
             
-            return ResponseEntity.ok(Map.of("token", token, "username", username, "role", u.getRole(), "userId", u.getId()));
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", token);
+            response.put("username", username);
+            response.put("role", u.getRole());
+            response.put("userId", u.getId());
+            response.put("managedCommunity", u.getManagedCommunity());
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(500).body(Map.of("error", "登录过程中发生错误: " + e.getMessage()));
@@ -99,7 +105,11 @@ public class AuthController {
             return ResponseEntity.status(401).body(Map.of("error", "用户不存在"));
         }
         SystemUser u = userOpt.get();
-        return ResponseEntity.ok(Map.of("username", u.getUsername(), "role", u.getRole()));
+        Map<String, Object> response = new HashMap<>();
+        response.put("username", u.getUsername());
+        response.put("role", u.getRole());
+        response.put("managedCommunity", u.getManagedCommunity());
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/register")
@@ -109,6 +119,7 @@ public class AuthController {
             String username = payload.get("username");
             String password = payload.get("password");
             String role = payload.get("role");
+            String managedCommunity = payload.get("managedCommunity");
 
             if (username == null || username.trim().isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "用户名不能为空", "message", "用户名不能为空"));
@@ -138,6 +149,14 @@ public class AuthController {
                 normalizedRole = "MANAGER";
             }
             newUser.setRole(normalizedRole);
+            if ("MANAGER".equals(normalizedRole)) {
+                if (managedCommunity == null || managedCommunity.trim().isEmpty()) {
+                    return ResponseEntity.badRequest().body(Map.of(
+                            "error", "区管理员必须选择负责社区",
+                            "message", "区管理员必须选择负责社区"));
+                }
+                newUser.setManagedCommunity(managedCommunity.trim());
+            }
 
 
             // 保存用户到数据库

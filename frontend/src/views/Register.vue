@@ -53,6 +53,18 @@
           <div v-if="errors.role" class="error-message">{{ errors.role }}</div>
         </div>
 
+        <div v-if="form.role === 'normal'" class="form-group">
+          <label for="managedCommunity">负责社区</label>
+          <input
+            type="text"
+            id="managedCommunity"
+            v-model="form.managedCommunity"
+            placeholder="请输入该管理员负责的社区名称"
+            :class="{ 'error': errors.managedCommunity }"
+          />
+          <div v-if="errors.managedCommunity" class="error-message">{{ errors.managedCommunity }}</div>
+        </div>
+
         <button type="submit" class="login-button" :disabled="loading">
           {{ loading ? '注册中...' : '注册' }}
         </button>
@@ -80,6 +92,7 @@ interface FormData {
   password: string;
   confirmPassword: string;
   role: string;
+  managedCommunity: string;
 }
 
 interface Errors {
@@ -87,20 +100,23 @@ interface Errors {
   password: string;
   confirmPassword: string;
   role: string;
+  managedCommunity: string;
 }
 
 const form = reactive<FormData>({
   username: '',
   password: '',
   confirmPassword: '',
-  role: ''
+  role: '',
+  managedCommunity: ''
 });
 
 const errors = reactive<Errors>({
   username: '',
   password: '',
   confirmPassword: '',
-  role: ''
+  role: '',
+  managedCommunity: ''
 });
 
 // 表单验证函数
@@ -112,6 +128,7 @@ const validateForm = (): boolean => {
   errors.password = '';
   errors.confirmPassword = '';
   errors.role = '';
+  errors.managedCommunity = '';
 
   // 验证用户名
   if (!form.username.trim()) {
@@ -146,6 +163,11 @@ const validateForm = (): boolean => {
     isValid = false;
   }
 
+  if (form.role === 'normal' && !form.managedCommunity.trim()) {
+    errors.managedCommunity = '请输入该管理员负责的社区名称';
+    isValid = false;
+  }
+
   return isValid;
 };
 
@@ -163,7 +185,8 @@ const handleRegister = async () => {
     const response = await apiClient.post('auth/register', {
       username: form.username,
       password: form.password,
-      role: form.role
+      role: form.role,
+      managedCommunity: form.role === 'normal' ? form.managedCommunity.trim() : undefined
     });
     ElMessage.success('注册成功，请登录');
     

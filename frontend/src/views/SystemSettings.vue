@@ -58,6 +58,11 @@
                 </el-tag>
               </template>
             </el-table-column>
+            <el-table-column prop="managedCommunity" label="负责社区" width="140">
+              <template #default="scope">
+                {{ scope.row.role === 'MANAGER' ? (scope.row.managedCommunity || '未配置') : '全部社区' }}
+              </template>
+            </el-table-column>
             <el-table-column prop="active" label="状态" width="120">
               <template #default="scope">
                 <el-tag 
@@ -102,6 +107,9 @@
                   {{ selectedSysUser.role === 'ADMIN' ? '电力公司人员' : '社区人员' }}
                 </el-tag>
               </el-descriptions-item>
+              <el-descriptions-item label="负责社区">
+                {{ selectedSysUser.role === 'MANAGER' ? (selectedSysUser.managedCommunity || '未配置') : '全部社区' }}
+              </el-descriptions-item>
               <el-descriptions-item label="状态">
                 <el-tag :type="selectedSysUser.active ? 'success' : 'danger'">
                   {{ selectedSysUser.active ? '激活' : '禁用' }}
@@ -131,6 +139,9 @@
                 <el-option label="电力公司人员" value="ADMIN" />
                 <el-option label="社区人员" value="MANAGER" />
               </el-select>
+            </el-form-item>
+            <el-form-item v-if="editSysUserForm.role === 'MANAGER'" label="负责社区" prop="managedCommunity">
+              <el-input v-model="editSysUserForm.managedCommunity" placeholder="请输入与居民档案一致的社区名称" />
             </el-form-item>
             <el-form-item label="状态" prop="active">
               <el-switch v-model="editSysUserForm.active" active-text="激活" inactive-text="禁用" />
@@ -339,6 +350,7 @@ interface SystemUser {
   username: string;
   password?: string;
   role: string;
+  managedCommunity?: string;
   active: boolean;
   createTime: string;
   updateTime: string;
@@ -418,8 +430,15 @@ const editSysUser = (user: SystemUser) => {
 
 const submitEditSysUserForm = async () => {
   if (!editSysUserFormRef.value) return;
+  if (editSysUserForm.role === 'MANAGER' && !editSysUserForm.managedCommunity?.trim()) {
+    ElMessage.error('区管理员必须配置负责社区');
+    return;
+  }
   await editSysUserFormRef.value.validate();
   const submitData: any = { ...editSysUserForm };
+  submitData.managedCommunity = submitData.role === 'MANAGER'
+    ? submitData.managedCommunity.trim()
+    : null;
   if (!submitData.password) delete submitData.password;
   await apiClient.put(`/api/system-users/${editSysUserForm.id}`, submitData);
   loadSystemUsers();
@@ -518,5 +537,4 @@ loadSystemUsers();
   }
 }
 </style>
-
 

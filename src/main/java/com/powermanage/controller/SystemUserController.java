@@ -79,6 +79,9 @@ public class SystemUserController {
         if (systemUserRepository.findByUsername(user.getUsername()).isPresent()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
+        if (!normalizeAndValidateScope(user)) {
+            return ResponseEntity.badRequest().build();
+        }
         SystemUser savedUser = systemUserRepository.save(user);
         return new ResponseEntity<>(savedUser, HttpStatus.CREATED);
     }
@@ -88,6 +91,9 @@ public class SystemUserController {
     public ResponseEntity<SystemUser> updateSystemUser(@PathVariable Long id, @RequestBody SystemUser user) {
         if (!systemUserRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
+        }
+        if (!normalizeAndValidateScope(user)) {
+            return ResponseEntity.badRequest().build();
         }
         user.setId(id);
         SystemUser updatedUser = systemUserRepository.save(user);
@@ -102,5 +108,20 @@ public class SystemUserController {
         }
         systemUserRepository.deleteById(id);
         return ResponseEntity.noContent().build();
+    }
+
+    private boolean normalizeAndValidateScope(SystemUser user) {
+        if ("ADMIN".equalsIgnoreCase(user.getRole())) {
+            user.setManagedCommunity(null);
+            return true;
+        }
+        if (!"MANAGER".equalsIgnoreCase(user.getRole())) {
+            return false;
+        }
+        if (user.getManagedCommunity() == null || user.getManagedCommunity().trim().isEmpty()) {
+            return false;
+        }
+        user.setManagedCommunity(user.getManagedCommunity().trim());
+        return true;
     }
 }
