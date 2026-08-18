@@ -2,11 +2,33 @@
   <view class="trend-container">
     <!-- 用户选择器 -->
     <view class="user-selector">
-      <picker mode="selector" :range="userList" range-key="name" :value="selectedUserIndex" @change="onUserChange">
+      <view class="user-search">
+        <text class="search-icon">⌕</text>
+        <input
+          v-model.trim="userKeyword"
+          class="search-input"
+          type="text"
+          confirm-type="search"
+          placeholder="搜索姓名、地址、电表号或手机号"
+        />
+        <text v-if="userKeyword" class="clear-search" @click="userKeyword = ''">×</text>
+      </view>
+      <view class="search-result-count" v-if="userKeyword">
+        找到 {{ filteredUserList.length }} 位用户
+      </view>
+
+      <picker
+        mode="selector"
+        :range="filteredUserList"
+        range-key="displayName"
+        :value="pickerValue"
+        :disabled="filteredUserList.length === 0"
+        @change="onUserChange"
+      >
         <view class="selector-item">
           <text class="selector-label">选择用户</text>
           <view class="selector-value">
-            <text>{{ selectedUser ? selectedUser.name : '请选择用户' }}</text>
+            <text>{{ filteredUserList.length === 0 ? '没有匹配的用户' : (selectedUser ? selectedUser.name : '请选择用户') }}</text>
             <text class="arrow">▼</text>
           </view>
         </view>
@@ -62,6 +84,9 @@ interface User {
   id: number
   name: string
   address: string
+  meterNumber?: string
+  phoneNumber?: string
+  displayName?: string
 }
 
 interface ElectricityData {
@@ -89,12 +114,35 @@ const loadEcharts = (): any => {
 }
 
 const userList = ref<User[]>([])
-const selectedUserIndex = ref(-1)
+const userKeyword = ref('')
 const selectedUser = ref<User | null>(null)
 const timeRange = ref(7) // 固定为7天
 const chartData = ref<any[]>([])
 const chartRef = ref<any>(null)
 let chartInstance: any = null
+
+const filteredUserList = computed(() => {
+  const keyword = userKeyword.value.trim().toLowerCase()
+  const users = keyword
+    ? userList.value.filter(user => [
+        user.name,
+        user.address,
+        user.meterNumber,
+        user.phoneNumber
+      ].some(value => String(value || '').toLowerCase().includes(keyword)))
+    : userList.value
+
+  return users.map(user => ({
+    ...user,
+    displayName: `${user.name} · ${user.meterNumber || user.address || `ID ${user.id}`}`
+  }))
+})
+
+const pickerValue = computed(() => {
+  if (!selectedUser.value) return 0
+  const index = filteredUserList.value.findIndex(user => user.id === selectedUser.value?.id)
+  return index >= 0 ? index : 0
+})
 
 // 统计数据
 const totalConsumption = computed(() => {
@@ -128,8 +176,8 @@ const getUserList = async () => {
 
 // 用户选择变化
 const onUserChange = (e: any) => {
-  selectedUserIndex.value = e.detail.value
-  selectedUser.value = userList.value[selectedUserIndex.value]
+  const selectedIndex = Number(e.detail.value)
+  selectedUser.value = filteredUserList.value[selectedIndex] || null
   loadElectricityData()
 }
 
@@ -429,6 +477,48 @@ onUnmounted(() => {
   background-color: #ffffff;
   padding: 20rpx;
   margin-bottom: 20rpx;
+}
+
+.user-search {
+  height: 76rpx;
+  display: flex;
+  align-items: center;
+  padding: 0 20rpx;
+  margin-bottom: 20rpx;
+  background-color: #f5f7fa;
+  border: 2rpx solid transparent;
+  border-radius: 12rpx;
+  box-sizing: border-box;
+}
+
+.user-search:focus-within {
+  border-color: #409eff;
+  background-color: #ffffff;
+}
+
+.search-icon {
+  margin-right: 12rpx;
+  font-size: 34rpx;
+  color: #909399;
+}
+
+.search-input {
+  flex: 1;
+  height: 100%;
+  font-size: 28rpx;
+  color: #303133;
+}
+
+.clear-search {
+  padding: 8rpx 4rpx 8rpx 20rpx;
+  font-size: 36rpx;
+  color: #909399;
+}
+
+.search-result-count {
+  margin: -8rpx 0 16rpx;
+  font-size: 24rpx;
+  color: #909399;
 }
 
 .selector-item {

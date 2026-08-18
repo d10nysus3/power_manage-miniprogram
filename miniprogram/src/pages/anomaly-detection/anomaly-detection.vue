@@ -156,8 +156,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { onPullDownRefresh } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
+import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 import request from '../../utils/request'
 import { formatDateTime, formatAnomalyType, formatSeverity, getAnomalyTypeColor } from '../../utils/format'
 
@@ -374,8 +374,29 @@ onPullDownRefresh(() => {
   })
 })
 
-onMounted(() => {
-  getAnomalyList()
+onShow(async () => {
+  const pendingRecordId = Number(uni.getStorageSync('pendingAnomalyRecordId'))
+
+  if (pendingRecordId) {
+    uni.removeStorageSync('pendingAnomalyRecordId')
+    // 仪表盘展示的是最近记录，可能不属于当天，因此先清除默认日期过滤。
+    selectedDate.value = ''
+    currentPage.value = 1
+  }
+
+  await getAnomalyList()
+
+  if (pendingRecordId) {
+    const record = anomalyList.value.find(item => item.id === pendingRecordId)
+    if (record) {
+      viewDetail(record)
+    } else {
+      uni.showToast({
+        title: '未找到该异常记录',
+        icon: 'none'
+      })
+    }
+  }
 })
 </script>
 
@@ -688,4 +709,3 @@ onMounted(() => {
   justify-content: center;
 }
 </style>
-

@@ -461,8 +461,11 @@ const viewAllRecords = () => {
 
 // 查看记录详情
 const viewRecordDetail = (record: AnomalyRecord) => {
-  uni.navigateTo({
-    url: `/pages/anomaly-detection/anomaly-detection?recordId=${record.id}`
+  // TabBar 页面不能通过 navigateTo 打开，也不能通过 switchTab 携带查询参数。
+  // 先暂存记录 ID，由异常检测页在显示时读取并打开对应详情。
+  uni.setStorageSync('pendingAnomalyRecordId', record.id)
+  uni.switchTab({
+    url: '/pages/anomaly-detection/anomaly-detection'
   })
 }
 
