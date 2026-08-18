@@ -38,7 +38,7 @@
 
     <!-- 图表容器 -->
     <view class="chart-container" v-if="selectedUser">
-      <view class="chart-title">{{ selectedUser.name }} - 每日用电趋势</view>
+      <view class="chart-title">{{ selectedUser.name }} - 近一周用电趋势</view>
       
       <!-- 有数据时显示图表 -->
       <view class="chart-wrapper" v-if="chartData.length > 0">

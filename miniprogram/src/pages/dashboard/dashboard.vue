@@ -413,7 +413,7 @@ const getSystemStatus = async () => {
       statusCards[2].trend = String(data.rateTrend || '+0%')
       statusCards[2].trendUp = String(data.rateTrend || '').startsWith('+')
       
-      statusCards[3].value = `${data.todayElectricity || 0}万kWh`
+      statusCards[3].value = `${data.todayElectricity || 0}kWh`
       statusCards[3].trend = String(data.electricityTrend || '+0%')
       statusCards[3].trendUp = String(data.electricityTrend || '').startsWith('+')
     }
