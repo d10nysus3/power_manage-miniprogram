@@ -46,11 +46,6 @@
         >
           {{ loading ? '登录中...' : '登录' }}
         </button>
-
-        <view class="register-link">
-          <text>还没有账号？</text>
-          <text class="link-text" @click="goToRegister">立即注册</text>
-        </view>
       </view>
     </view>
   </view>
@@ -161,13 +156,6 @@ const handleLogin = async () => {
     loading.value = false
   }
 }
-
-// 跳转注册
-const goToRegister = () => {
-  uni.navigateTo({
-    url: '/pages/register/register'
-  })
-}
 </script>
 
 <style scoped>
@@ -274,7 +262,6 @@ const goToRegister = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 30rpx;
 }
 
 .login-btn:active {
@@ -284,16 +271,4 @@ const goToRegister = () => {
 .login-btn[disabled] {
   opacity: 0.6;
 }
-
-.register-link {
-  text-align: center;
-  font-size: 26rpx;
-  color: #909399;
-}
-
-.register-link .link-text {
-  color: #409eff;
-  margin-left: 8rpx;
-}
 </style>
-

@@ -33,8 +33,8 @@
       "postcss": true,
       "minified": true
     },
-    "use2dCanvas": true,
     "usingComponents": true,
+    "lazyCodeLoading": "requiredComponents",
     "permission": {
       "scope.userLocation": {
         "desc": "你的位置信息将用于小程序位置接口的效果展示"
@@ -56,4 +56,3 @@
   },
   "vueVersion": "3"
 }
-

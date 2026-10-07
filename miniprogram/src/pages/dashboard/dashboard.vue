@@ -17,9 +17,6 @@
         <view class="card-info">
           <text class="card-value">{{ item.value }}</text>
           <text class="card-label">{{ item.label }}</text>
-          <text class="card-trend" :class="item.trendUp ? 'trend-up' : 'trend-down'">
-            {{ item.trend }}
-          </text>
         </view>
       </view>
     </view>
@@ -39,7 +36,7 @@
         <l-echart
           ref="chartRef"
           type="2d"
-          :beforeDelay="500"
+          :beforeDelay="30"
           @finished="onTrendChartFinished"
         ></l-echart>
       </view>
@@ -55,7 +52,7 @@
         <l-echart
           ref="typeChartRef"
           type="2d"
-          :beforeDelay="500"
+          :beforeDelay="30"
           @finished="onTypeChartFinished"
         ></l-echart>
       </view>
@@ -134,8 +131,6 @@ interface StatusCard {
   icon: string
   label: string
   value: string
-  trend: string
-  trendUp: boolean
   color: string
 }
 
@@ -149,10 +144,10 @@ interface AnomalyRecord {
 }
 
 const statusCards = reactive<StatusCard[]>([
-  { icon: '👥', label: '用户总数', value: '0', trend: '+0%', trendUp: true, color: '#409eff' },
-  { icon: '⚠️', label: '今日异常', value: '0', trend: '+0%', trendUp: false, color: '#f56c6c' },
-  { icon: '✅', label: '处理率', value: '0%', trend: '+0%', trendUp: true, color: '#67c23a' },
-  { icon: '📊', label: '今日用电', value: '0kWh', trend: '+0%', trendUp: true, color: '#e6a23c' }
+  { icon: '👥', label: '用户总数', value: '0', color: '#409eff' },
+  { icon: '⚠️', label: '今日异常', value: '0', color: '#f56c6c' },
+  { icon: '✅', label: '处理率', value: '0%', color: '#67c23a' },
+  { icon: '📊', label: '今日用电', value: '0kWh', color: '#e6a23c' }
 ])
 
 const recentRecords = ref<AnomalyRecord[]>([])
@@ -160,8 +155,11 @@ const recentRecords = ref<AnomalyRecord[]>([])
 // 图表实例（不要放到响应式里）
 const chartRef = ref<any>(null)
 let chartIns: any = null
+let chartInitPromise: Promise<any> | null = null
 const typeChartRef = ref<any>(null)
 let typeChartIns: any = null
+let typeChartInitPromise: Promise<any> | null = null
+let trendRequestId = 0
 
 const getTrendDays = (): number => {
   const map = [7, 30, 90]
@@ -199,88 +197,81 @@ const buildTrendOption = (xData: string[], yData: number[]) => {
 
 const ensureChart = async () => {
   if (chartIns) {
-    console.log('[dashboard] 趋势图已存在，直接返回')
     return chartIns
   }
+  if (chartInitPromise) return chartInitPromise
   if (!chartRef.value) {
     console.error('[dashboard] chartRef.value 为空')
     return null
   }
-  if (!loadEcharts()) {
+  const echartsModule = loadEcharts()
+  if (!echartsModule) {
     console.error('[dashboard] echarts 未加载，无法初始化趋势图')
     return null
   }
-  console.log('[dashboard] 开始初始化趋势图...')
-  try {
-    chartIns = await chartRef.value.init(loadEcharts())
-    console.log('[dashboard] 趋势图初始化成功', !!chartIns)
-    // 尺寸兜底
-    chartRef.value?.resize?.()
-    return chartIns
-  } catch (e) {
-    console.error('[dashboard] 趋势图初始化失败', e)
-    return null
-  }
+  chartInitPromise = (async () => {
+    try {
+      chartIns = await chartRef.value.init(echartsModule)
+      chartRef.value?.resize?.()
+      return chartIns
+    } catch (e) {
+      console.error('[dashboard] 趋势图初始化失败', e)
+      return null
+    } finally {
+      chartInitPromise = null
+    }
+  })()
+  return chartInitPromise
 }
 
 const ensureTypeChart = async () => {
   if (typeChartIns) {
-    console.log('[dashboard] 类型分布图已存在，直接返回')
     return typeChartIns
   }
+  if (typeChartInitPromise) return typeChartInitPromise
   if (!typeChartRef.value) {
     console.error('[dashboard] typeChartRef.value 为空')
     return null
   }
-  if (!loadEcharts()) {
+  const echartsModule = loadEcharts()
+  if (!echartsModule) {
     console.error('[dashboard] echarts 未加载，无法初始化类型分布图')
     return null
   }
-  console.log('[dashboard] 开始初始化类型分布图...')
-  try {
-    typeChartIns = await typeChartRef.value.init(loadEcharts())
-    console.log('[dashboard] 类型分布图初始化成功', !!typeChartIns)
-    typeChartRef.value?.resize?.()
-    return typeChartIns
-  } catch (e) {
-    console.error('[dashboard] 类型分布图初始化失败', e)
-    return null
-  }
+  typeChartInitPromise = (async () => {
+    try {
+      typeChartIns = await typeChartRef.value.init(echartsModule)
+      typeChartRef.value?.resize?.()
+      return typeChartIns
+    } catch (e) {
+      console.error('[dashboard] 类型分布图初始化失败', e)
+      return null
+    } finally {
+      typeChartInitPromise = null
+    }
+  })()
+  return typeChartInitPromise
 }
 
-const onTrendChartFinished = async () => {
-  console.log('[dashboard] 趋势图组件 finished 事件触发')
-  // 组件 mounted 完成后再 init，避免容器尺寸为 0
-  const ins = await ensureChart()
-  if (ins) {
-    console.log('[dashboard] 趋势图初始化完成，开始加载数据')
-    // init 成功后再拉数据绘制
-    loadElectricityTrend()
-  } else {
-    console.error('[dashboard] 趋势图初始化失败')
-  }
+const onTrendChartFinished = () => {
+  loadElectricityTrend()
 }
 
-const onTypeChartFinished = async () => {
-  console.log('[dashboard] 类型分布图组件 finished 事件触发')
-  const ins = await ensureTypeChart()
-  if (ins) {
-    console.log('[dashboard] 类型分布图初始化完成，开始加载数据')
-    loadAnomalyTypeDistribution()
-  } else {
-    console.error('[dashboard] 类型分布图初始化失败')
-  }
+const onTypeChartFinished = () => {
+  loadAnomalyTypeDistribution()
 }
 
 const loadElectricityTrend = async () => {
   try {
-    console.log('[dashboard] 开始加载用电趋势数据')
+    const requestId = ++trendRequestId
     const days = getTrendDays()
+    // 请求与 Canvas 初始化同时进行，避免串行等待。
+    const statsPromise = request.get('/electricity-data/daily-stats', { days })
+    const chartPromise = ensureChart()
     let stats: any[] = []
     
     try {
-      stats = await request.get('/electricity-data/daily-stats', { days })
-      console.log('[dashboard] 用电趋势数据获取成功', stats)
+      stats = await statsPromise
     } catch (error) {
       console.warn('[dashboard] 用电趋势数据获取失败，使用模拟数据', error)
       // 使用模拟数据
@@ -310,14 +301,12 @@ const loadElectricityTrend = async () => {
     
     const xData = list.map(i => String(i?.date ?? ''))
     const yData = list.map(i => Number(i?.value ?? 0))
-    console.log('[dashboard] 处理后的数据', { xData, yData })
-    
-    const ins = await ensureChart()
+    const ins = await chartPromise
     if (!ins) {
       console.error('[dashboard] 图表实例不存在，无法设置 option')
       return
     }
-    console.log('[dashboard] 设置趋势图 option')
+    if (requestId !== trendRequestId) return
     ins.setOption(buildTrendOption(xData, yData), true)
   } catch (error) {
     console.error('获取用电趋势失败:', error)
@@ -355,12 +344,12 @@ const buildTypeDistributionOption = (data: any[]) => {
 
 const loadAnomalyTypeDistribution = async () => {
   try {
-    console.log('[dashboard] 开始加载异常类型分布数据')
+    const dataPromise = request.get('/anomalies/type-distribution')
+    const chartPromise = ensureTypeChart()
     let data: any[] = []
     
     try {
-      data = await request.get('/anomalies/type-distribution')
-      console.log('[dashboard] 异常类型分布数据获取成功', data)
+      data = await dataPromise
     } catch (error) {
       console.warn('[dashboard] 异常类型分布数据获取失败，使用模拟数据', error)
       // 使用模拟数据
@@ -383,12 +372,11 @@ const loadAnomalyTypeDistribution = async () => {
       ]
     }
     
-    const ins = await ensureTypeChart()
+    const ins = await chartPromise
     if (!ins) {
       console.error('[dashboard] 类型分布图实例不存在，无法设置 option')
       return
     }
-    console.log('[dashboard] 设置类型分布图 option')
     ins.setOption(buildTypeDistributionOption(data), true)
   } catch (error) {
     console.error('获取异常类型分布失败:', error)
@@ -402,20 +390,12 @@ const getSystemStatus = async () => {
     
     if (data) {
       statusCards[0].value = data.totalUsers?.toLocaleString() || '0'
-      statusCards[0].trend = String(data.userTrend || '+0%')
-      statusCards[0].trendUp = String(data.userTrend || '').startsWith('+')
       
       statusCards[1].value = data.todayAnomalies?.toString() || '0'
-      statusCards[1].trend = String(data.anomalyTrend || '+0%')
-      statusCards[1].trendUp = String(data.anomalyTrend || '').startsWith('+')
       
       statusCards[2].value = `${data.processingRate || 0}%`
-      statusCards[2].trend = String(data.rateTrend || '+0%')
-      statusCards[2].trendUp = String(data.rateTrend || '').startsWith('+')
       
       statusCards[3].value = `${data.todayElectricity || 0}kWh`
-      statusCards[3].trend = String(data.electricityTrend || '+0%')
-      statusCards[3].trendUp = String(data.electricityTrend || '').startsWith('+')
     }
   } catch (error) {
     console.error('获取系统状态失败:', error)
@@ -482,11 +462,6 @@ onPullDownRefresh(() => {
 })
 
 onMounted(() => {
-  console.log('[dashboard] 页面 mounted')
-  console.log('[dashboard] echarts 是否加载:', !!loadEcharts())
-  console.log('[dashboard] chartRef:', !!chartRef.value)
-  console.log('[dashboard] typeChartRef:', !!typeChartRef.value)
-  
   const userInfo = getUserInfo()
   username.value = userInfo.username || '用户'
   
@@ -496,6 +471,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  trendRequestId++
   try {
     chartIns?.dispose?.()
     typeChartIns?.dispose?.()
@@ -580,20 +556,6 @@ onUnmounted(() => {
 .card-label {
   font-size: 24rpx;
   color: #909399;
-  margin-bottom: 4rpx;
-}
-
-.card-trend {
-  font-size: 22rpx;
-  font-weight: 500;
-}
-
-.card-trend.trend-up {
-  color: #f56c6c;
-}
-
-.card-trend.trend-down {
-  color: #67c23a;
 }
 
 .chart-section, .records-section {
@@ -756,4 +718,3 @@ onUnmounted(() => {
   color: #909399;
 }
 </style>
-
