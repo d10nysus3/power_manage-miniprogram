@@ -42,10 +42,10 @@
       </view>
     </view>
 
-    <!-- 异常等级分布 -->
+    <!-- 异常类型分布 -->
     <view class="chart-section">
       <view class="section-header">
-        <text class="section-title">异常等级分布</text>
+        <text class="section-title">异常类型分布</text>
         <text class="section-subtitle">累计</text>
       </view>
       <view class="chart-container">
@@ -314,12 +314,10 @@ const loadElectricityTrend = async () => {
 }
 
 interface DistributionCounts {
-  high: number
-  medium: number
-  low: number
-  unclassified: number
+  outage: number
+  highPower: number
   manual: number
-  other: number
+  startDelay: number
 }
 
 const buildTypeDistributionOption = (counts: DistributionCounts) => {
@@ -328,17 +326,11 @@ const buildTypeDistributionOption = (counts: DistributionCounts) => {
     return Number.isFinite(number) && number > 0 ? number : 0
   }
   const seriesData = [
-    { name: '高风险异常', value: count(counts.high), itemStyle: { color: '#f56c6c' } },
-    { name: '中风险异常', value: count(counts.medium), itemStyle: { color: '#e6a23c' } },
-    { name: '低风险异常', value: count(counts.low), itemStyle: { color: '#67c23a' } },
-    { name: '用户主动报警', value: count(counts.manual), itemStyle: { color: '#409eff' } }
+    { name: '异常断电', value: count(counts.outage), itemStyle: { color: '#f56c6c' } },
+    { name: '异常功率高', value: count(counts.highPower), itemStyle: { color: '#e6a23c' } },
+    { name: '用户主动报警', value: count(counts.manual), itemStyle: { color: '#409eff' } },
+    { name: '开启延迟', value: count(counts.startDelay), itemStyle: { color: '#67c23a' } }
   ]
-  if (counts.unclassified > 0) {
-    seriesData.push({ name: '未分级设备警告', value: count(counts.unclassified), itemStyle: { color: '#909399' } })
-  }
-  if (counts.other > 0) {
-    seriesData.push({ name: '其他异常', value: count(counts.other), itemStyle: { color: '#7d82ee' } })
-  }
   const hasData = seriesData.some(item => item.value > 0)
 
   return {
@@ -355,11 +347,11 @@ const buildTypeDistributionOption = (counts: DistributionCounts) => {
       type: 'text',
       left: 'center',
       top: 'middle',
-      style: { text: '暂无异常或报警数据', fill: '#909399', fontSize: 12 }
+      style: { text: '暂无这四类异常数据', fill: '#909399', fontSize: 12 }
     }],
     series: [
       {
-        name: '异常与报警',
+        name: '异常类型',
         type: 'pie',
         radius: ['35%', '60%'],
         center: ['28%', '50%'],
@@ -379,8 +371,7 @@ const loadAnomalyTypeDistribution = async () => {
     const distribution = await distributionPromise
     if (!Array.isArray(distribution)) throw new Error('异常类型分布数据格式错误')
 
-    const counts: DistributionCounts = { high: 0, medium: 0, low: 0, unclassified: 0, manual: 0, other: 0 }
-    const deviceTypes: Array<{ type: string; total: number }> = []
+    const counts: DistributionCounts = { outage: 0, highPower: 0, manual: 0, startDelay: 0 }
     for (const item of distribution) {
       const type = String(item?.anomalyType ?? item?.type ?? item?.name ?? '').trim()
       const name = String(item?.name ?? type).trim()
@@ -389,45 +380,22 @@ const loadAnomalyTypeDistribution = async () => {
       if (/^(manual|user[_-]?alarm|user[_-]?report)$/i.test(type) ||
           /^(manual|user[_-]?alarm|user[_-]?report)$/i.test(name) || /主动报警|用户报警/.test(name)) {
         counts.manual += value
-      } else if (/^device([_-]?(warning|alert|alarm))?$/i.test(type) ||
-                 /^device([_-]?(warning|alert|alarm))?$/i.test(name) || /设备.*(警告|告警|报警)/.test(name)) {
-        deviceTypes.push({ type, total: value })
-      } else {
-        counts.other += value
+      } else if (/^(power[_-]?outage|outage)$/i.test(type) || /异常断电|瞬时断电|停电/.test(name)) {
+        counts.outage += value
+      } else if (/^(sudden[_-]?increase|high[_-]?power|power[_-]?high)$/i.test(type) || /异常功率高|功率突增|功率过高/.test(name)) {
+        counts.highPower += value
+      } else if (/^(start(up)?[_-]?delay|turn[_-]?on[_-]?delay)$/i.test(type) || /开启延迟|启动延迟/.test(name)) {
+        counts.startDelay += value
       }
     }
-
-    await Promise.all(deviceTypes.map(async ({ type, total }) => {
-      try {
-        const records = await request.get(`/anomalies/type/${encodeURIComponent(type)}`)
-        if (!Array.isArray(records) || records.length !== total) {
-          counts.unclassified += total
-          return
-        }
-        for (const record of records) {
-          let level = String(record?.severityLevel ?? '').trim().toLowerCase()
-          if (!level && record?.anomalyScore != null) {
-            const score = Number(record.anomalyScore)
-            if (Number.isFinite(score)) level = score > 0.8 ? 'high' : score > 0.5 ? 'medium' : 'low'
-          }
-          if (level === 'high' || level === 'critical' || level === '高') counts.high++
-          else if (level === 'medium' || level === '中') counts.medium++
-          else if (level === 'low' || level === '低') counts.low++
-          else counts.unclassified++
-        }
-      } catch (error) {
-        console.warn('[dashboard] 设备警告等级获取失败', error)
-        counts.unclassified += total
-      }
-    }))
     const ins = await chartPromise
     if (!ins) {
-      console.error('[dashboard] 异常等级分布图实例不存在，无法设置 option')
+      console.error('[dashboard] 异常类型分布图实例不存在，无法设置 option')
       return
     }
     ins.setOption(buildTypeDistributionOption(counts), true)
   } catch (error) {
-    console.error('获取异常等级分布失败:', error)
+    console.error('获取异常类型分布失败:', error)
   }
 }
 
