@@ -42,11 +42,11 @@
       </view>
     </view>
 
-    <!-- 异常类型分布 -->
+    <!-- 异常等级分布 -->
     <view class="chart-section">
       <view class="section-header">
-        <text class="section-title">异常类型分布</text>
-        <text class="section-subtitle">近30天</text>
+        <text class="section-title">异常等级分布</text>
+        <text class="section-subtitle">累计</text>
       </view>
       <view class="chart-container">
         <l-echart
@@ -313,30 +313,60 @@ const loadElectricityTrend = async () => {
   }
 }
 
-const buildTypeDistributionOption = (data: any[]) => {
-  const seriesData = (Array.isArray(data) ? data : []).map((i: any) => ({
-    name: String(i?.name ?? i?.anomalyType ?? ''),
-    value: Number(i?.value ?? 0),
-    itemStyle: i?.itemStyle
-  }))
+interface DistributionCounts {
+  high: number
+  medium: number
+  low: number
+  unclassified: number
+  manual: number
+  other: number
+}
+
+const buildTypeDistributionOption = (counts: DistributionCounts) => {
+  const count = (value: unknown) => {
+    const number = Number(value ?? 0)
+    return Number.isFinite(number) && number > 0 ? number : 0
+  }
+  const seriesData = [
+    { name: '高风险异常', value: count(counts.high), itemStyle: { color: '#f56c6c' } },
+    { name: '中风险异常', value: count(counts.medium), itemStyle: { color: '#e6a23c' } },
+    { name: '低风险异常', value: count(counts.low), itemStyle: { color: '#67c23a' } },
+    { name: '用户主动报警', value: count(counts.manual), itemStyle: { color: '#409eff' } }
+  ]
+  if (counts.unclassified > 0) {
+    seriesData.push({ name: '未分级设备警告', value: count(counts.unclassified), itemStyle: { color: '#909399' } })
+  }
+  if (counts.other > 0) {
+    seriesData.push({ name: '其他异常', value: count(counts.other), itemStyle: { color: '#7d82ee' } })
+  }
+  const hasData = seriesData.some(item => item.value > 0)
 
   return {
-    tooltip: { trigger: 'item', confine: true },
+    tooltip: { trigger: 'item', confine: true, formatter: '{b}：{c} 条（{d}%）' },
     legend: {
-      type: 'scroll',
-      bottom: 0,
+      orient: 'vertical',
+      right: 0,
+      top: 'middle',
+      data: seriesData.map(item => item.name),
+      formatter: (name: string) => `${name} ${seriesData.find(item => item.name === name)?.value ?? 0}起`,
       textStyle: { color: '#606266', fontSize: 10 }
     },
+    graphic: hasData ? [] : [{
+      type: 'text',
+      left: 'center',
+      top: 'middle',
+      style: { text: '暂无异常或报警数据', fill: '#909399', fontSize: 12 }
+    }],
     series: [
       {
-        name: '异常类型',
+        name: '异常与报警',
         type: 'pie',
-        radius: ['40%', '68%'],
-        center: ['50%', '45%'],
+        radius: ['35%', '60%'],
+        center: ['28%', '50%'],
         avoidLabelOverlap: true,
         label: { show: false },
         labelLine: { show: false },
-        data: seriesData
+        data: hasData ? seriesData : []
       }
     ]
   }
@@ -344,42 +374,60 @@ const buildTypeDistributionOption = (data: any[]) => {
 
 const loadAnomalyTypeDistribution = async () => {
   try {
-    const dataPromise = request.get('/anomalies/type-distribution')
+    const distributionPromise = request.get('/anomalies/type-distribution')
     const chartPromise = ensureTypeChart()
-    let data: any[] = []
-    
-    try {
-      data = await dataPromise
-    } catch (error) {
-      console.warn('[dashboard] 异常类型分布数据获取失败，使用模拟数据', error)
-      // 使用模拟数据
-      data = [
-        { name: '电压异常', value: 35, itemStyle: { color: '#f56c6c' } },
-        { name: '电流异常', value: 28, itemStyle: { color: '#e6a23c' } },
-        { name: '功率异常', value: 22, itemStyle: { color: '#409eff' } },
-        { name: '频率异常', value: 15, itemStyle: { color: '#67c23a' } }
-      ]
+    const distribution = await distributionPromise
+    if (!Array.isArray(distribution)) throw new Error('异常类型分布数据格式错误')
+
+    const counts: DistributionCounts = { high: 0, medium: 0, low: 0, unclassified: 0, manual: 0, other: 0 }
+    const deviceTypes: Array<{ type: string; total: number }> = []
+    for (const item of distribution) {
+      const type = String(item?.anomalyType ?? item?.type ?? item?.name ?? '').trim()
+      const name = String(item?.name ?? type).trim()
+      const value = Number(item?.value ?? 0)
+      if (!Number.isFinite(value) || value <= 0) continue
+      if (/^(manual|user[_-]?alarm|user[_-]?report)$/i.test(type) ||
+          /^(manual|user[_-]?alarm|user[_-]?report)$/i.test(name) || /主动报警|用户报警/.test(name)) {
+        counts.manual += value
+      } else if (/^device([_-]?(warning|alert|alarm))?$/i.test(type) ||
+                 /^device([_-]?(warning|alert|alarm))?$/i.test(name) || /设备.*(警告|告警|报警)/.test(name)) {
+        deviceTypes.push({ type, total: value })
+      } else {
+        counts.other += value
+      }
     }
-    
-    const list = Array.isArray(data) ? data : []
-    if (list.length === 0) {
-      console.warn('[dashboard] 数据为空，使用默认数据')
-      data = [
-        { name: '电压异常', value: 35, itemStyle: { color: '#f56c6c' } },
-        { name: '电流异常', value: 28, itemStyle: { color: '#e6a23c' } },
-        { name: '功率异常', value: 22, itemStyle: { color: '#409eff' } },
-        { name: '频率异常', value: 15, itemStyle: { color: '#67c23a' } }
-      ]
-    }
-    
+
+    await Promise.all(deviceTypes.map(async ({ type, total }) => {
+      try {
+        const records = await request.get(`/anomalies/type/${encodeURIComponent(type)}`)
+        if (!Array.isArray(records) || records.length !== total) {
+          counts.unclassified += total
+          return
+        }
+        for (const record of records) {
+          let level = String(record?.severityLevel ?? '').trim().toLowerCase()
+          if (!level && record?.anomalyScore != null) {
+            const score = Number(record.anomalyScore)
+            if (Number.isFinite(score)) level = score > 0.8 ? 'high' : score > 0.5 ? 'medium' : 'low'
+          }
+          if (level === 'high' || level === 'critical' || level === '高') counts.high++
+          else if (level === 'medium' || level === '中') counts.medium++
+          else if (level === 'low' || level === '低') counts.low++
+          else counts.unclassified++
+        }
+      } catch (error) {
+        console.warn('[dashboard] 设备警告等级获取失败', error)
+        counts.unclassified += total
+      }
+    }))
     const ins = await chartPromise
     if (!ins) {
-      console.error('[dashboard] 类型分布图实例不存在，无法设置 option')
+      console.error('[dashboard] 异常等级分布图实例不存在，无法设置 option')
       return
     }
-    ins.setOption(buildTypeDistributionOption(data), true)
+    ins.setOption(buildTypeDistributionOption(counts), true)
   } catch (error) {
-    console.error('获取异常类型分布失败:', error)
+    console.error('获取异常等级分布失败:', error)
   }
 }
 
