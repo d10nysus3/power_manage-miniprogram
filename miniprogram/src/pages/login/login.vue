@@ -67,11 +67,9 @@ const loading = ref(false)
 // 初始化表单 - 读取记住的登录信息
 onMounted(() => {
   const savedUsername = uni.getStorageSync('rememberedUsername')
-  const savedPassword = uni.getStorageSync('rememberedPassword')
-  
-  if (savedUsername && savedPassword) {
+  uni.removeStorageSync('rememberedPassword')
+  if (savedUsername) {
     form.username = savedUsername
-    form.password = savedPassword
     rememberMe.value = true
   }
 })
@@ -121,7 +119,6 @@ const handleLogin = async () => {
     // 处理记住我
     if (rememberMe.value) {
       uni.setStorageSync('rememberedUsername', form.username)
-      uni.setStorageSync('rememberedPassword', form.password)
     } else {
       uni.removeStorageSync('rememberedUsername')
       uni.removeStorageSync('rememberedPassword')

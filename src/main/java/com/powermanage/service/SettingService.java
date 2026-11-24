@@ -9,6 +9,8 @@ import java.util.List;
 
 @Service
 public class SettingService {
+    public static final String AUDIT_RETENTION_KEY = "audit.retention.days";
+    public static final int DEFAULT_AUDIT_RETENTION_DAYS = 365;
 
     @Autowired
     private SettingRepository settingRepository;
@@ -17,7 +19,23 @@ public class SettingService {
         return settingRepository.findAll();
     }
 
+    public int getAuditRetentionDays() {
+        return settingRepository.findByKey(AUDIT_RETENTION_KEY)
+                .map(setting -> Integer.parseInt(setting.getValue()))
+                .orElse(DEFAULT_AUDIT_RETENTION_DAYS);
+    }
+
     public Setting updateSetting(String key, String value) {
+        if (AUDIT_RETENTION_KEY.equals(key)) {
+            try {
+                int days = Integer.parseInt(value);
+                if (days < 1 || days > 3650) {
+                    throw new IllegalArgumentException("审计日志留存天数须在 1 至 3650 天之间");
+                }
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("审计日志留存天数须为整数");
+            }
+        }
         
         java.util.Optional<Setting> existingSettingOpt = settingRepository.findByKey(key);
         

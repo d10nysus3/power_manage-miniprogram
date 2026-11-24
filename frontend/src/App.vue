@@ -5,6 +5,7 @@ import { ref, onMounted, onUnmounted, computed } from 'vue';
 import router from './router';
 import { ElMessage } from 'element-plus';
 import { useDevice } from './composables/useDevice';
+import apiClient from './utils/api';
 
 const isCollapse = ref(false);
 const { isMobile } = useDevice();
@@ -54,10 +55,16 @@ const handleSystemSettings = () => {
   router.push('/settings');
 };
 
-const handleLogout = () => {
+const handleLogout = async () => {
+  try { await apiClient.post('/auth/logout'); } catch (error) { console.error('注销请求失败', error); }
   localStorage.removeItem('token');
   localStorage.removeItem('username');
   localStorage.removeItem('role');
+  localStorage.removeItem('userId');
+  sessionStorage.removeItem('token');
+  sessionStorage.removeItem('username');
+  sessionStorage.removeItem('role');
+  sessionStorage.removeItem('userId');
   userRole.value = null;
   username.value = null;
   router.push('/login');

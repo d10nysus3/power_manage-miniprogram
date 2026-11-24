@@ -158,10 +158,11 @@
       <el-tab-pane label="通用设置" name="general-settings">
         <div class="settings-panel">
           <div v-for="setting in settings" :key="setting.key" class="setting-item">
-            <span class="setting-label">{{ setting.key }}</span>
+            <span class="setting-label">{{ setting.key === 'audit.retention.days' ? '审计日志留存天数' : setting.key }}</span>
             <el-input v-model="setting.value" class="setting-input" />
             <el-button type="primary" @click="updateSetting(setting)">保存</el-button>
           </div>
+          <el-alert type="info" :closable="false" show-icon>审计日志留存天数可设为 1 至 3650 天；系统每天 02:00 清理早于留存期限的记录。</el-alert>
           
           
           <div class="system-management">
@@ -209,8 +210,7 @@ const settings = ref<Setting[]>([]);
 
 const fetchSettings = async () => {
   try {
-    const response = await apiClient.get('/settings');
-    settings.value = response.data;
+    settings.value = await apiClient.get('/settings') as unknown as Setting[];
   } catch (error) {
     console.error('获取设置失败:', error);
     ElMessage.error('获取设置失败');
@@ -220,11 +220,11 @@ const fetchSettings = async () => {
 
 const updateSetting = async (setting: Setting) => {
   try {
-    const response = await apiClient.post('/settings', { key: setting.key, value: setting.value });
-    if (response.data.success) {
+    const response = await apiClient.post('/settings', { key: setting.key, value: setting.value }) as unknown as { success: boolean; message?: string };
+    if (response.success) {
       ElMessage.success('设置已更新');
     } else {
-      ElMessage.error(response.data.message || '更新设置失败');
+      ElMessage.error(response.message || '更新设置失败');
     }
   } catch (error) {
     console.error('更新设置失败:', error);
@@ -339,7 +339,6 @@ onMounted(() => {
 const systemUserColumns = [
   { prop: 'id', label: 'ID', width: 80, editable: false },
   { prop: 'username', label: '用户名' },
-  { prop: 'passwordHash', label: '密码哈希' },
   { prop: 'role', label: '角色' }
 ]
 
@@ -537,4 +536,3 @@ loadSystemUsers();
   }
 }
 </style>
-

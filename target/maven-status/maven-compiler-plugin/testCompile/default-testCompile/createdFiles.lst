@@ -1,2 +1,2 @@
-com\powermanage\util\AnomalyDetectionNormalizationTest.class
-com\powermanage\integration\AnomalyDetectionIntegrationTest.class
+com/powermanage/service/AuditRetentionTest.class
+com/powermanage/service/LoginSessionServiceTest.class

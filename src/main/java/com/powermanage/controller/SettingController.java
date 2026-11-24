@@ -32,7 +32,13 @@ public class SettingController {
                 defaultSettings.add(createDefaultSetting("alert.threshold.high", "100"));
                 defaultSettings.add(createDefaultSetting("alert.threshold.medium", "80"));
                 defaultSettings.add(createDefaultSetting("alert.threshold.low", "60"));
+                defaultSettings.add(createDefaultSetting(SettingService.AUDIT_RETENTION_KEY,
+                        String.valueOf(SettingService.DEFAULT_AUDIT_RETENTION_DAYS)));
                 return defaultSettings;
+            }
+            if (settings.stream().noneMatch(setting -> SettingService.AUDIT_RETENTION_KEY.equals(setting.getKey()))) {
+                settings.add(createDefaultSetting(SettingService.AUDIT_RETENTION_KEY,
+                        String.valueOf(SettingService.DEFAULT_AUDIT_RETENTION_DAYS)));
             }
             return settings;
         } catch (Exception e) {
@@ -41,6 +47,8 @@ public class SettingController {
             List<Setting> defaultSettings = new ArrayList<>();
             defaultSettings.add(createDefaultSetting("system.name", "用电异常监测与管理系统"));
             defaultSettings.add(createDefaultSetting("system.version", "1.0.0"));
+            defaultSettings.add(createDefaultSetting(SettingService.AUDIT_RETENTION_KEY,
+                    String.valueOf(SettingService.DEFAULT_AUDIT_RETENTION_DAYS)));
             return defaultSettings;
         }
     }

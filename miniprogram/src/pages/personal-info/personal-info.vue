@@ -29,6 +29,11 @@
       </view>
     </view>
 
+    <view v-if="role === 'ADMIN'" class="card" @click="openSystemSettings">
+      <view class="card-title">系统设置</view>
+      <text>审计日志留存与查询　›</text>
+    </view>
+
     <!-- 退出登录 -->
     <view class="logout-section">
       <button class="logout-btn" @click="handleLogout">退出登录</button>
@@ -39,11 +44,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getUserInfo, clearUserInfo, getRoleDisplayName } from '../../utils/auth'
+import request from '../../utils/request'
 
 const username = ref('')
 const role = ref('')
 const roleDisplayName = ref('')
 const lastLoginTime = ref('')
+
+const openSystemSettings = () => uni.navigateTo({ url: '/pages/system-settings/system-settings' })
 
 onMounted(() => {
   const userInfo = getUserInfo()
@@ -58,8 +66,9 @@ const handleLogout = () => {
   uni.showModal({
     title: '提示',
     content: '确定要退出登录吗？',
-    success: (res) => {
+    success: async (res) => {
       if (res.confirm) {
+        try { await request.request({ url: '/auth/logout', method: 'POST' }) } catch (error) { console.error('注销请求失败', error) }
         clearUserInfo()
         uni.showToast({ title: '已退出登录', icon: 'success' })
         setTimeout(() => {
@@ -189,4 +198,3 @@ const handleLogout = () => {
   opacity: 0.8;
 }
 </style>
-

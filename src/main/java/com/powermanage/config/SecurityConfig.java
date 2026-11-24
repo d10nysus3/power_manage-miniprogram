@@ -15,6 +15,8 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 
 import com.powermanage.filter.JwtAuthenticationFilter;
 
@@ -54,7 +56,9 @@ public class SecurityConfig {
                 // 静态资源和公共接口
                 .antMatchers("/static/**", "/public/**", "/css/**", "/js/**", "/images/**").permitAll()
                 .antMatchers("/ws/**").permitAll()
-                .antMatchers("/api/auth/**", "/api/public/**").permitAll()
+                .antMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                .antMatchers("/api/public/**").permitAll()
+                .antMatchers(HttpMethod.POST, "/api/auth/register").hasRole("ADMIN")
 
 
                 // 限制只有 ADMIN 可以访问的模块
@@ -62,7 +66,9 @@ public class SecurityConfig {
                 .antMatchers("/api/anomalies/**").hasRole("ADMIN")
                 .antMatchers("/api/emergency/**").hasRole("ADMIN")
                 .antMatchers("/api/admin/**").hasRole("ADMIN")
+                .antMatchers("/api/system-management/**").hasRole("ADMIN")
                 .antMatchers("/api/system-users/**").hasRole("ADMIN")
+                .antMatchers("/api/audit-logs", "/api/audit-logs/**", "/api/settings", "/api/settings/**").hasRole("ADMIN")
 
                 // 其他接口允许 ADMIN 和 MANAGER 访问
                 .antMatchers("/api/manager/**").hasAnyRole("ADMIN", "MANAGER")
@@ -79,6 +85,7 @@ public class SecurityConfig {
 
             .httpBasic().disable()
 
+            .exceptionHandling().authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)).and()
             .headers().frameOptions().disable(); 
         
 

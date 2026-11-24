@@ -15,10 +15,6 @@
         <el-form-item>
           <el-button type="primary" @click="submit">登录</el-button>
         </el-form-item>
-        <el-form-item>
-          <span>还没有账号？</span>
-          <a href="#" @click.prevent="goToRegister">立即注册</a>
-        </el-form-item>
       </el-form>
     </el-card>
   </div>
@@ -33,7 +29,8 @@ import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const formRef = ref<FormInstance>()
-const form = reactive({ username: 'admin', password: '123456' })
+const form = reactive({ username: '', password: '' })
+const rememberMe = ref(false)
 
 const rules = {
   username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
@@ -44,11 +41,10 @@ const rules = {
 const initLoginForm = () => {
   // 检查localStorage中是否有保存的登录信息
   const savedUsername = localStorage.getItem('rememberedUsername');
-  const savedPassword = localStorage.getItem('rememberedPassword');
-  if (savedUsername && savedPassword) {
+  localStorage.removeItem('rememberedPassword');
+  if (savedUsername) {
     form.username = savedUsername;
-    form.password = savedPassword;
-    form.rememberMe = true;
+    rememberMe.value = true;
   }
 };
 
@@ -63,16 +59,15 @@ const submit = async () => {
       const resp = await apiClient.post('auth/login', { username: form.username, password: form.password }) as any
       
       // 根据记住我选项决定使用localStorage还是sessionStorage
-      const storage = form.rememberMe ? localStorage : sessionStorage;
+      const storage = rememberMe.value ? localStorage : sessionStorage;
       storage.setItem('token', resp.token)
       storage.setItem('username', resp.username)
       storage.setItem('role', resp.role)
       storage.setItem('userId', resp.userId.toString())
       
       // 如果勾选了记住我，保存用户名和密码
-      if ((form as any).rememberMe) {
+      if (rememberMe.value) {
         localStorage.setItem('rememberedUsername', form.username);
-        localStorage.setItem('rememberedPassword', form.password);
       } else {
         // 未勾选时清除可能存在的记住信息
         localStorage.removeItem('rememberedUsername');
@@ -93,10 +88,6 @@ const submit = async () => {
   })
 };
 
-// 跳转到注册页面
-const goToRegister = () => {
-  router.push('/register');
-};
 </script>
 
 <style scoped>

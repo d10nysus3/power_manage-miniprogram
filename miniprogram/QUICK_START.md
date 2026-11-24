@@ -22,17 +22,9 @@ npm install
 
 ### 步骤 2：配置后端 API 地址
 
-编辑 `utils/request.ts` 文件：
+接口地址由环境文件提供：`.env.development` 用于开发，`.env.production` 用于正式构建，当前均为 `https://pttxyd.cn/api`；Nginx 将 `/api/` 转发到后端的 `/power_manage/api/`。不要在微信后台填写 `/api` 路径。若需调试本地后端，可创建不提交的 `.env.development.local` 覆盖开发地址，并在开发者工具中临时关闭域名校验。
 
-```typescript
-// 第 7 行
-const BASE_URL = 'https://your-domain.com/api'  // 改为你的后端地址
-
-// 开发环境可以使用：
-// const BASE_URL = 'http://localhost:8080/api'
-```
-
-⚠️ **注意**：小程序正式版必须使用 HTTPS 协议！
+正式构建会检查地址必须是 HTTPS 域名，且不能带端口。
 
 ### 步骤 3：配置小程序 AppID
 
@@ -53,8 +45,11 @@ const BASE_URL = 'https://your-domain.com/api'  // 改为你的后端地址
 1. 登录 [微信公众平台](https://mp.weixin.qq.com/)
 2. 进入：开发 → 开发管理 → 开发设置 → 服务器域名
 3. 配置以下域名：
-   - **request 合法域名**：`https://your-domain.com`
-   - **socket 合法域名**：`wss://your-domain.com`（如果使用 WebSocket）
+   - **request 合法域名**：`https://pttxyd.cn`
+   - **socket 合法域名**：当前小程序未发起 WebSocket 连接，可先留空；启用时填 `wss://pttxyd.cn`
+   - **uploadFile / downloadFile 合法域名**：当前未使用，可先留空
+
+服务器必须能正常响应 `https://pttxyd.cn/api/`。如果出现 502，请检查后端 8081 端口及 Nginx 的 `/api/` 反向代理；小程序域名配置无法修复 502。
 
 ## 三、运行项目
 
@@ -204,9 +199,10 @@ npm run build:mp-weixin
 
 ### 2. 上传代码
 
-1. 在微信开发者工具中点击「上传」
-2. 填写版本号和项目备注
-3. 上传成功后在微信公众平台查看
+1. 微信开发者工具导入 `miniprogram` 根目录时，确认「详情 → 本地设置」中的小程序目录为 `dist/build/mp-weixin/`；也可直接导入 `miniprogram/dist/build/mp-weixin`。
+2. 确认构建产物 `dist/build/mp-weixin/utils/request.js` 中的接口域名为 `https://pttxyd.cn/api`。
+3. 在微信开发者工具中点击「上传」，不要上传 `dist/dev/mp-weixin` 中的开发构建。
+4. 填写版本号和项目备注，上传成功后在微信公众平台查看。
 
 ### 3. 提交审核
 
@@ -252,4 +248,3 @@ miniprogram/
 🎉 **恭喜！现在你可以开始开发微信小程序版本了！**
 
 如有问题，请查看 `README.md` 和 `MIGRATION_GUIDE.md` 获取更多帮助。
-

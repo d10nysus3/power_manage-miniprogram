@@ -37,11 +37,7 @@ npm install
 
 ### 2. 配置后端地址
 
-修改 `utils/request.ts` 中的 `BASE_URL`：
-
-```typescript
-const BASE_URL = 'https://your-domain.com/api'  // 改为你的后端地址
-```
+接口地址在 `.env.development` 和 `.env.production` 中配置。当前正式地址为 `https://pttxyd.cn/api`，微信后台的 request 合法域名填写 `https://pttxyd.cn`。正式构建会拒绝 HTTP、IP 和带端口的地址。
 
 ### 3. 配置微信小程序 AppID
 
@@ -68,7 +64,7 @@ npm run build:mp-weixin
 ### 5. 导入微信开发者工具
 
 1. 打开微信开发者工具
-2. 导入项目，选择 `miniprogram/dist/dev/mp-weixin` 目录
+2. 开发调试时选择 `miniprogram/dist/dev/mp-weixin`；正式上传前运行 `npm run build:mp-weixin` 并选择 `miniprogram/dist/build/mp-weixin`。根目录 `project.config.json` 的 `miniprogramRoot` 已指向正式构建。
 3. 开始开发调试
 
 ## 主要功能
@@ -291,4 +287,3 @@ npm run build:mp-weixin
 ## License
 
 MIT
-

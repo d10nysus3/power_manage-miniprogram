@@ -2,6 +2,8 @@ package com.powermanage.controller;
 
 import com.powermanage.entity.SystemUser;
 import com.powermanage.repository.SystemUserRepository;
+import com.powermanage.repository.LoginSessionRepository;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +18,11 @@ public class SystemUserController {
 
     @Autowired
     private SystemUserRepository systemUserRepository;
+
+    @Autowired
+    private LoginSessionRepository loginSessionRepository;
+
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     
     @GetMapping
@@ -75,6 +82,10 @@ public class SystemUserController {
     
     @PostMapping
     public ResponseEntity<SystemUser> createSystemUser(@RequestBody SystemUser user) {
+        if (user.getPasswordHash() == null || user.getPasswordHash().length() < 12 ||
+                user.getPasswordHash().length() > 128) return ResponseEntity.badRequest().build();
+        user.setPasswordHash(passwordEncoder.encode(user.getPasswordHash()));
+        user.setActive(true);
         
         if (systemUserRepository.findByUsername(user.getUsername()).isPresent()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
@@ -89,13 +100,24 @@ public class SystemUserController {
     
     @PutMapping("/{id}")
     public ResponseEntity<SystemUser> updateSystemUser(@PathVariable Long id, @RequestBody SystemUser user) {
-        if (!systemUserRepository.existsById(id)) {
+        Optional<SystemUser> existing = systemUserRepository.findById(id);
+        if (existing.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
+        String newPassword = user.getPasswordHash();
+        if (newPassword == null || newPassword.isBlank()) user.setPasswordHash(existing.get().getPasswordHash());
+        else if (newPassword.length() < 12 || newPassword.length() > 128) return ResponseEntity.badRequest().build();
+        else user.setPasswordHash(passwordEncoder.encode(newPassword));
         if (!normalizeAndValidateScope(user)) {
             return ResponseEntity.badRequest().build();
         }
         user.setId(id);
+        user.setCreateTime(existing.get().getCreateTime());
+        user.setFailedLoginCount(existing.get().getFailedLoginCount());
+        user.setLockedUntil(existing.get().getLockedUntil());
+        if (newPassword != null && !newPassword.isBlank() || !existing.get().getRole().equals(user.getRole()) ||
+                !user.isActive())
+            loginSessionRepository.deleteByUserId(id);
         SystemUser updatedUser = systemUserRepository.save(user);
         return ResponseEntity.ok(updatedUser);
     }
@@ -106,6 +128,7 @@ public class SystemUserController {
         if (!systemUserRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
         }
+        loginSessionRepository.deleteByUserId(id);
         systemUserRepository.deleteById(id);
         return ResponseEntity.noContent().build();
     }

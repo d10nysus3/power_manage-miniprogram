@@ -5,8 +5,8 @@
   
 /// <reference types="@dcloudio/types" />
 
-// 配置基础URL - 需要根据实际后端地址修改
-const BASE_URL = 'http://8.152.214.222:8081/power_manage/api' 
+// 开发和正式环境的地址分别由 .env.development / .env.production 提供。
+const BASE_URL = import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '')
 
 
 
@@ -214,4 +214,3 @@ export default {
   // 自定义请求
   request
 }
-

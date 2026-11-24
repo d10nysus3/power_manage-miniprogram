@@ -1,5 +1,7 @@
 node_modules/
 dist/
+.env.production.local
+.env.development.local
 unpackage/
 .DS_Store
 *.log
@@ -10,4 +12,3 @@ unpackage/
 *.njsproj
 *.sln
 *.sw?
-

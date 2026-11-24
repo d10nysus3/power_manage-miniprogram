@@ -3,6 +3,8 @@ package com.powermanage.entity;
 import lombok.Data;
 
 import javax.persistence.*;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonAlias;
 
 @Data
 @Entity
@@ -16,6 +18,8 @@ public class SystemUser {
     private String username;
 
     @Column(nullable = false, length = 255)  
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @JsonAlias("password")
     private String passwordHash;
 
     @Column(nullable = false, length = 50)
@@ -27,6 +31,12 @@ public class SystemUser {
      */
     @Column(name = "managed_community", length = 100)
     private String managedCommunity;
+
+    @Column(name = "failed_login_count", nullable = false)
+    private int failedLoginCount;
+
+    @Column(name = "locked_until")
+    private java.time.LocalDateTime lockedUntil;
 
     @Column(name = "is_active")  
     private boolean active;

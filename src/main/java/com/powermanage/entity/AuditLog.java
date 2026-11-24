@@ -7,11 +7,12 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
+import javax.persistence.Index;
 import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "t_audit_log")
+@Table(name = "t_audit_log", indexes = @Index(name = "idx_audit_log_timestamp", columnList = "timestamp"))
 public class AuditLog {
 
     @Id
